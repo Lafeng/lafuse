@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Lafuse-基于CloudFlare的图床服务">
+  <meta name="keywords" content="Lafuse,Workers图床, Pages图床,R2储存, Cloudflare, Workers, 图床">
+  <title>Lafuse-基于CloudFlare的图床服务</title>
+  <link rel="icon" href="https://p1.meituan.net/csc/c195ee91001e783f39f41ffffbbcbd484286.ico" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/upload.css">
+</head>
+<body>
+  <div class="page" x-data="uploadApp()" x-init="init()">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">LF</div>
+        <div>
+          <h1>Lafuse</h1>
+          <p x-Lafuse="view === 'admin' ? '管理上传的媒体资源' : '轻量、快速、现代化的上传体验'"></p>
+        </div>
+      </div>
+      <div class="user-actions">
+        <span class="user"
+              :class="{ 'user-admin': user?.role === 'admin' }"
+              :title="user?.role === 'admin' ? '点击切换管理面板' : ''"
+              @click="user?.role === 'admin' && toggleView()"
+              x-text="(user?.role === 'admin' ? '👑 ' : '') + (user?.username ?? '')"></span>
+        <button class="ghost-button" @click="logout">退出</button>
+      </div>
+    </header>
+
+    <!-- ============ Upload View ============ -->
+    <main class="content" x-show="view === 'upload'" x-transition>
+      <section class="upload-card" :class="{ 'drag-active': dragActive }" @dragover.prevent="dragActive = true" @dragleave.prevent="dragActive = false" @drop.prevent="handleDrop($event)">
+        <div class="upload-header">
+          <div>
+            <h2>上传资源</h2>
+            <p>支持拖拽、点击选择或粘贴上传</p>
+          </div>
+          <div class="toggle">
+            <span>图片压缩</span>
+            <button class="toggle-button" :class="{ active: enableCompression }" @click="enableCompression = !enableCompression"></button>
+          </div>
+        </div>
+
+        <div class="drop-zone" @click="openFilePicker">
+          <input type="file" multiple class="file-input" x-ref="fileInput" @change="handleFiles($event)">
+          <div class="drop-content">
+            <div class="drop-icon">⬆</div>
+            <div class="drop-text">
+              <strong>拖拽文件到这里</strong>
+              <span>或点击选择</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="upload-list" x-show="uploads.length">
+          <template x-for="item in uploads" :key="item.id">
+            <div class="upload-item" :class="item.status">
+              <div class="upload-meta">
+                <strong x-text="item.name"></strong>
+                <span x-text="formatBytes(item.size)"></span>
+              </div>
+              <div class="upload-progress">
+                <div class="progress-bar" :style="`width: ${item.progress}%`"></div>
+              </div>
+              <div class="upload-status" x-text="statusText(item)"></div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <section class="link-card">
+        <div class="link-header">
+          <h3>链接输出</h3>
+          <div class="format-buttons">
+            <button :class="{ active: format === 'url' }" @click="setFormat('url')">URL</button>
+            <button :class="{ active: format === 'bbcode' }" @click="setFormat('bbcode')">BBCode</button>
+            <button :class="{ active: format === 'markdown' }" @click="setFormat('markdown')">Markdown</button>
+          </div>
+        </div>
+        <textarea readonly placeholder="上传后自动生成链接" x-model="linkOutput"></textarea>
+        <div class="link-actions">
+          <button class="primary-button" @click="copyLinks" :disabled="!linkOutput">复制链接</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============ Admin View ============ -->
+    <template x-if="user?.role === 'admin'">
+      <div x-show="view === 'admin'" x-transition>
+        <section class="admin-toolbar">
+          <div class="stats">
+            <span>媒体文件 <strong x-text="adminTotalCount"></strong> 个</span>
+            <span>已选中 <strong x-text="adminSelectedKeys.size"></strong> 个</span>
+          </div>
+          <div class="actions" x-show="adminSelectedKeys.size > 0">
+            <div class="dropdown" @mouseenter="adminDropdownOpen = true" @mouseleave="adminDropdownOpen = false">
+              <button class="primary-button">复制</button>
+              <div class="dropdown-content" x-show="adminDropdownOpen">
+                <button @click="adminCopyLinks('url')">URL</button>
+                <button @click="adminCopyLinks('bbcode')">BBCode</button>
+                <button @click="adminCopyLinks('markdown')">Markdown</button>
+              </div>
+            </div>
+            <button class="ghost-button" @click="adminToggleSelectAll">全选</button>
+            <button class="danger-button" @click="adminDeleteSelected">删除</button>
+          </div>
+        </section>
+
+        <section class="gallery">
+          <template x-if="adminLoading">
+            <div class="loading">加载中...</div>
+          </template>
+          <template x-if="!adminLoading && adminMedia.length === 0">
+            <div class="empty">暂无媒体文件</div>
+          </template>
+          <template x-for="item in adminMedia" :key="item.url">
+            <article class="media-card" :class="{ selected: adminSelectedKeys.has(item.url) }" @click="adminToggleSelection(item)">
+              <div class="media-type" x-text="item.extension"></div>
+              <div class="media-preview">
+                <template x-if="item.kind === 'video'">
+                  <video class="media-video" preload="none" controls :data-src="item.url"></video>
+                </template>
+                <template x-if="item.kind === 'image'">
+                  <img class="media-image" :data-src="item.url" alt="media">
+                </template>
+                <template x-if="item.kind === 'file'">
+                  <div class="media-file">📁</div>
+                </template>
+                <div class="skeleton"></div>
+              </div>
+              <div class="media-meta">
+                <span x-text="item.idLabel"></span>
+                <span x-text="item.timeLabel"></span>
+                <span x-text="item.userLabel"></span>
+              </div>
+            </article>
+          </template>
+        </section>
+
+        <section class="pagination" x-show="adminTotalPages > 1">
+          <button class="ghost-button" @click="adminGoToPage(adminCurrentPage - 1)" :disabled="adminCurrentPage <= 1">上一页</button>
+          <span x-text="adminPageLabel"></span>
+          <button class="ghost-button" @click="adminGoToPage(adminCurrentPage + 1)" :disabled="adminCurrentPage >= adminTotalPages">下一页</button>
+        </section>
+      </div>
+    </template>
+
+    <div class="toast-stack">
+      <template x-for="toast in toasts" :key="toast.id">
+        <div class="toast" :class="toast.tone" x-text="toast.message"></div>
+      </template>
+    </div>
+  </div>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/upload.js"></script>
+</body>
+</html>

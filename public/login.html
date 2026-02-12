@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - Lafuse</title>
+  <link rel="icon" href="https://p1.meituan.net/csc/c195ee91001e783f39f41ffffbbcbd484286.ico" type="image/x-icon">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/auth.css">
+</head>
+<body>
+  <div class="auth-page" x-data="loginApp()" x-init="init()">
+    <div class="auth-card">
+      <div class="brand">
+        <div class="brand-mark">LF</div>
+        <div class="brand-text">
+          <h1>Lafuse</h1>
+          <p>用现代方式管理你的资源</p>
+        </div>
+      </div>
+      <form class="auth-form" @submit.prevent="submit">
+        <label class="field">
+          <span>用户名</span>
+          <input type="text" x-model.trim="form.username" placeholder="输入用户名" autocomplete="username" required>
+        </label>
+        <label class="field">
+          <span>密码</span>
+          <input type="password" x-model.trim="form.password" placeholder="输入密码" autocomplete="current-password" required>
+        </label>
+        <button class="primary-button" type="submit" :disabled="isSubmitting">
+          <span x-show="!isSubmitting">登录</span>
+          <span x-show="isSubmitting">验证中...</span>
+        </button>
+        <p class="error" x-show="error" x-text="error"></p>
+      </form>
+      <div class="auth-footer">
+        <span>仅授权用户可访问上传</span>
+      </div>
+    </div>
+  </div>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/login.js"></script>
+</body>
+</html>
