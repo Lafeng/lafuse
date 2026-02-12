@@ -1,0 +1,15 @@
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS media;
+
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user'
+);
+CREATE TABLE media (
+  id TEXT PRIMARY KEY,
+  ext TEXT NOT NULL,
+  user_id INTEGER,
+  username TEXT
+);

@@ -1,0 +1,56 @@
+# Cloudflare Workers 配置
+name = "lafuse-dev"
+main = "_worker.js"
+compatibility_date = "2024-01-01"
+
+# Static Assets 配置
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# dev 环境变量配置
+[vars]
+DOMAIN="localhost:8787"
+AUTH_SALT="xxxxxxxxxxxx"
+# SESSION_COOKIE_NAME
+# SESSION_TTL_DAYS
+# MAX_SIZE_MB
+
+[[kv_namespaces]]
+binding = "KV_NAMESPACE"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "r2media"
+
+[[d1_databases]]
+binding = "DATABASE"
+database_name = "d1media"
+
+# ------ Cloudflare ------
+# ------ 生产环境配置 ------
+# ------ Cloudflare ------
+
+[env.production]
+name = "lafuse"
+#routes = [
+#  { pattern = "xxxxxxxxxxxx", zone_name = "xxxxxxxxxxxx", custom_domain = true }
+#]
+
+[env.production.vars]
+DOMAIN="xxxxxxxxxxxx"
+AUTH_SALT="xxxxxxxxxxxx"
+MAX_SIZE_MB="500"
+
+[[env.production.kv_namespaces]]
+binding = "KV_NAMESPACE"
+id = "xxxxxxxxxxxx"
+
+[[env.production.r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "xxxxxxxxxxxx"
+
+[[env.production.d1_databases]]
+binding = "DATABASE"
+database_name = "xxxxxxxxxxxx"
+database_id = "xxxxxxxxxxxx"
