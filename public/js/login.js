@@ -8,7 +8,7 @@ document.addEventListener('alpine:init', () => {
     error: '',
     async init() {
       try {
-        const response = await fetch('/api/session');
+        const response = await fetch('/api.session');
         const data = await response.json();
         if (data?.user) {
           window.location.href = '/';
@@ -21,7 +21,7 @@ document.addEventListener('alpine:init', () => {
       this.error = '';
       this.isSubmitting = true;
       try {
-        const response = await fetch('/api/login', {
+        const response = await fetch('/api.login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(this.form)

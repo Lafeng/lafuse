@@ -94,10 +94,10 @@
       <div x-show="view === 'admin'" x-transition>
         <section class="admin-toolbar">
           <div class="stats">
-            <span>媒体文件 <strong x-text="adminTotalCount"></strong> 个</span>
+            <span>文件 <strong x-text="adminTotalCount"></strong> 个</span>
             <span>已选中 <strong x-text="adminSelectedKeys.size"></strong> 个</span>
           </div>
-          <div class="actions" x-show="adminSelectedKeys.size > 0">
+          <div class="actions" :style="adminSelectedKeys.size === 0 ? 'visibility:hidden' : ''">
             <div class="dropdown" @mouseenter="adminDropdownOpen = true" @mouseleave="adminDropdownOpen = false">
               <button class="primary-button">复制</button>
               <div class="dropdown-content" x-show="adminDropdownOpen">
@@ -116,20 +116,20 @@
             <div class="loading">加载中...</div>
           </template>
           <template x-if="!adminLoading && adminMedia.length === 0">
-            <div class="empty">暂无媒体文件</div>
+            <div class="empty">暂无文件</div>
           </template>
           <template x-for="item in adminMedia" :key="item.url">
             <article class="media-card" :class="{ selected: adminSelectedKeys.has(item.url) }" @click="adminToggleSelection(item)">
               <div class="media-type" x-text="item.extension"></div>
               <div class="media-preview">
-                <template x-if="item.kind === 'video'">
-                  <video class="media-video" preload="none" controls :data-src="item.url"></video>
+                <template x-if="item.hasThumb">
+                  <img class="media-image" :data-src="item.thumbUrl" alt="preview">
                 </template>
-                <template x-if="item.kind === 'image'">
-                  <img class="media-image" :data-src="item.url" alt="media">
-                </template>
-                <template x-if="item.kind === 'file'">
-                  <div class="media-file">📁</div>
+                <template x-if="!item.hasThumb">
+                  <div class="media-file">
+                    <div class="media-file-ext" x-text="item.extension.toUpperCase()"></div>
+                    <div>📄</div>
+                  </div>
                 </template>
                 <div class="skeleton"></div>
               </div>
