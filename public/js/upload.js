@@ -18,27 +18,90 @@ const formatBytes = (bytes) => {
 const getExtension = (url) => url.split('.').pop().toLowerCase();
 const COMPRESSION_PREF_KEY = 'lafuse:enableCompression';
 
-const toJpgFileName = (name) => {
-  const dotIndex = name.lastIndexOf('.');
-  const baseName = dotIndex > 0 ? name.slice(0, dotIndex) : name;
-  return `${baseName}.jpg`;
-};
+const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg', 'avif', 'ico']);
+const VIDEO_EXTS = new Set(['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm']);
 
 const getMediaMeta = (item) => {
   const extension = getExtension(item.url);
   const stem = item.url.split('/').pop() ?? '';
-  const imageExt = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg', 'avif'];
-  const videoExt = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm'];
-  const isImage = imageExt.includes(extension);
-  const isVideo = videoExt.includes(extension);
+  const id = stem.substring(0, stem.lastIndexOf('.'));
+  const isImage = IMAGE_EXTS.has(extension);
+  const isVideo = VIDEO_EXTS.has(extension);
   const kind = isVideo ? 'video' : isImage ? 'image' : 'file';
+  const hasThumb = isImage || isVideo;
+  // item.url is https://domain/i/{id}.{ext} — thumb lives at /t/{id}.jpg
+  const origin = item.url.substring(0, item.url.indexOf('/i/'));
+  const thumbUrl = hasThumb ? `${origin}/t/${id}.jpg` : null;
   return {
     extension,
     kind,
+    hasThumb,
+    thumbUrl,
     idLabel: stem,
     timeLabel: new Date(item.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
     userLabel: item.username
   };
+};
+
+/** Generate a JPEG thumbnail from an image File (max 400 px on longest side). */
+const generateImageThumbnail = async (file) => {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxDim = 400;
+    const scale = Math.min(maxDim / bitmap.width, maxDim / bitmap.height, 1);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+    return blob ? new File([blob], 'thumb.jpg', { type: 'image/jpeg' }) : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Generate a JPEG thumbnail by capturing the first useful frame of a video File. */
+const generateVideoThumbnail = (file) => new Promise(resolve => {
+  const video = document.createElement('video');
+  const objectUrl = URL.createObjectURL(file);
+  const cleanup = () => URL.revokeObjectURL(objectUrl);
+
+  const capture = () => {
+    try {
+      const maxDim = 400;
+      const w = video.videoWidth || 640;
+      const h = video.videoHeight || 360;
+      const scale = Math.min(maxDim / w, maxDim / h, 1);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        cleanup();
+        resolve(blob ? new File([blob], 'thumb.jpg', { type: 'image/jpeg' }) : null);
+      }, 'image/jpeg', 0.82);
+    } catch { cleanup(); resolve(null); }
+  };
+
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'metadata';
+  video.addEventListener('error', () => { cleanup(); resolve(null); });
+  video.addEventListener('loadedmetadata', () => {
+    video.currentTime = Math.min(video.duration * 0.1, 1);
+  });
+  video.addEventListener('seeked', capture, { once: true });
+  // Fall back: if seeked never fires, capture after loadeddata
+  video.addEventListener('loadeddata', () => setTimeout(capture, 200), { once: true });
+  video.src = objectUrl;
+  video.load();
+});
+
+/** Upload a thumbnail blob to the server for a given file ID. */
+const uploadThumb = async (fileId, thumbFile) => {
+  const fd = new FormData();
+  fd.append('thumb', thumbFile, 'thumb.jpg');
+  await fetch(`/api.upload-thumb?id=${fileId}`, { method: 'POST', body: fd });
 };
 
 const uploadWithProgress = (url, formData, onProgress) => new Promise((resolve, reject) => {
@@ -82,9 +145,9 @@ const compressImage = async (file) => {
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.86));
   if (!blob) return file;
-  return new File([blob], toJpgFileName(file.name), {
-    type: 'image/jpeg'
-  });
+  const dotIndex = file.name.lastIndexOf('.');
+  const baseName = dotIndex > 0 ? file.name.slice(0, dotIndex) : file.name;
+  return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
 };
 
 document.addEventListener('alpine:init', () => {
@@ -131,7 +194,7 @@ document.addEventListener('alpine:init', () => {
       localStorage.setItem(COMPRESSION_PREF_KEY, value ? '1' : '0');
     },
     async loadSession() {
-      const response = await fetch('/api/session');
+      const response = await fetch('/api.session');
       const data = await response.json();
       if (!data?.user) {
         window.location.href = '/login';
@@ -140,7 +203,7 @@ document.addEventListener('alpine:init', () => {
       this.user = data.user;
     },
     async logout() {
-      await fetch('/api/logout', { method: 'POST' });
+      await fetch('/api.logout', { method: 'POST' });
       window.location.href = '/login';
     },
 
@@ -205,7 +268,7 @@ document.addEventListener('alpine:init', () => {
       try {
         const formData = new FormData();
         formData.append('file', processedFile, processedFile.name);
-        const responseData = await uploadWithProgress('/upload', formData, (progress) => {
+        const responseData = await uploadWithProgress('/api.upload', formData, (progress) => {
           // Use index-based update to ensure Alpine reactivity
           this.uploads[0].progress = progress;
         });
@@ -215,6 +278,23 @@ document.addEventListener('alpine:init', () => {
         this.uploads[0].url = responseData.data;
         this.updateLinks();
         this.toast('上传成功', 'success');
+
+        // Generate and upload thumbnail for images and videos (best-effort, non-blocking)
+        const ext = getExtension(responseData.data);
+        if (IMAGE_EXTS.has(ext) || VIDEO_EXTS.has(ext)) {
+          (async () => {
+            try {
+              const stem = responseData.data.split('/').pop();
+              const fileId = stem.substring(0, stem.lastIndexOf('.'));
+              const thumbFile = IMAGE_EXTS.has(ext)
+                ? await generateImageThumbnail(processedFile)
+                : await generateVideoThumbnail(file); // use original for video
+              if (thumbFile) await uploadThumb(fileId, thumbFile);
+            } catch (e) {
+              console.warn('缩略图生成失败，已跳过:', e);
+            }
+          })();
+        }
       } catch (error) {
         this.uploads[0].status = 'error';
         this.toast(error?.message ?? '上传失败', 'error');
@@ -255,7 +335,7 @@ document.addEventListener('alpine:init', () => {
     async adminLoadMedia() {
       this.adminLoading = true;
       try {
-        const response = await fetch(`/api/media?page=${this.adminCurrentPage}`);
+        const response = await fetch(`/api.media?page=${this.adminCurrentPage}`);
         if (!response.ok) throw new Error('加载失败');
         const data = await response.json();
         this.adminTotalCount = data.totalCount;
@@ -291,7 +371,7 @@ document.addEventListener('alpine:init', () => {
       if (this.adminSelectedKeys.size === 0) return;
       if (!confirm('确定要删除选中的媒体文件吗？此操作无法撤回。')) return;
       try {
-        const response = await fetch('/delete-images', {
+        const response = await fetch('/api.delete-images', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify([...this.adminSelectedKeys])
@@ -330,27 +410,18 @@ document.addEventListener('alpine:init', () => {
           if (!entry.isIntersecting) return;
           const container = entry.target;
           const skeleton = container.querySelector('.skeleton');
-          const video = container.querySelector('video');
-          const img = container.querySelector('img');
-          if (video?.dataset.src) {
-            video.src = video.dataset.src;
-            video.onloadeddata = () => {
-              video.classList.add('loaded');
-              skeleton?.classList.add('hidden');
-            };
-          } else if (img?.dataset.src) {
+          const img = container.querySelector('img[data-src]');
+          if (img) {
             img.src = img.dataset.src;
-            img.onload = () => {
-              img.classList.add('loaded');
-              skeleton?.classList.add('hidden');
-            };
+            img.onload = () => { img.classList.add('loaded'); skeleton?.classList.add('hidden'); };
+            img.onerror = () => { img.classList.add('loaded'); skeleton?.classList.add('hidden'); };
           } else {
             skeleton?.classList.add('hidden');
           }
           observer.unobserve(container);
         });
-      }, { threshold: 0.2 });
-      this.$root.querySelectorAll('.media-card').forEach(card => observer.observe(card));
+      }, { threshold: 0.1 });
+      this.$root.querySelectorAll('.media-preview').forEach(el => observer.observe(el));
     }
   }));
 });

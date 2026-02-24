@@ -27,10 +27,29 @@
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const CONTENT_TYPES = {
+  // Images
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
-  svg: 'image/svg+xml', mp4: 'video/mp4', avi: 'video/x-msvideo',
-  mov: 'video/quicktime', webm: 'video/webm',
+  svg: 'image/svg+xml', ico: 'image/x-icon', tiff: 'image/tiff', avif: 'image/avif',
+  // Videos
+  mp4: 'video/mp4', avi: 'video/x-msvideo', mov: 'video/quicktime',
+  webm: 'video/webm', mkv: 'video/x-matroska', flv: 'video/x-flv', wmv: 'video/x-ms-wmv',
+  // Audio
+  mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac', aac: 'audio/aac',
+  // Documents
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  // Archives
+  zip: 'application/zip', gz: 'application/gzip', tar: 'application/x-tar',
+  '7z': 'application/x-7z-compressed', rar: 'application/x-rar-compressed',
+  // Text / Code
+  txt: 'text/plain', csv: 'text/csv', json: 'application/json',
+  xml: 'application/xml', html: 'text/html', css: 'text/css', js: 'application/javascript',
 };
 
 const CACHE_TTL = { HTML: 3600, IMAGE: 86400, API: 300, STATIC: 86400 };
@@ -39,10 +58,13 @@ const CACHE_TTL = { HTML: 3600, IMAGE: 86400, API: 300, STATIC: 86400 };
 const MAX_LOGIN_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW = 900; // 15 minutes (seconds)
 
-/** First path segment set for static asset fast-path */
-const STATIC_SEGMENTS = new Set(['css', 'js', 'fonts', 'images']);
 
 // ─── Config ──────────────────────────────────────────────────────────────────
+//
+// _config is initialised once on the first request and reused for the lifetime
+// of the isolate.  env bindings are stable across requests within one isolate.
+//
+let _config = null;
 
 function buildConfig(env) {
   return {
@@ -109,14 +131,23 @@ function buildNotModifiedResponse(headersSource) {
 }
 
 function parseMediaPathname(pathname) {
-  const fileName = pathname.startsWith('/') ? pathname.slice(1) : pathname;
-  const extensionSeparatorIndex = fileName.lastIndexOf('.');
-  if (extensionSeparatorIndex < 1) return null;
+  // Accepts /i/{id}.{ext}  (original file)
+  //      or /t/{id}.jpg    (thumbnail)
+  const slash2 = pathname.indexOf('/', 1);
+  if (slash2 < 0) return null;
+  const prefix = pathname.substring(1, slash2); // 'i' | 't'
+  if (prefix !== 'i' && prefix !== 't') return null;
 
-  return {
-    mediaId: fileName.substring(0, extensionSeparatorIndex),
-    extension: fileName.substring(extensionSeparatorIndex + 1).toLowerCase(),
-  };
+  const fileName = pathname.substring(slash2 + 1);
+  const dotIdx = fileName.lastIndexOf('.');
+  if (dotIdx < 1) return null;
+
+  const originalId = fileName.substring(0, dotIdx);
+  const extension = fileName.substring(dotIdx + 1).toLowerCase();
+  const isThumb = prefix === 't';
+  const r2Key = isThumb ? `t/${originalId}` : originalId;
+
+  return { r2Key, extension, isThumb, originalId };
 }
 
 function buildMediaHeaders({ etag, lastModified, contentType }) {
@@ -308,7 +339,7 @@ async function apiMedia({ config, url }) {
 
   return json({
     media: dataResult.results.map(r => ({
-      url: `https://${config.domain}/${r.id}.${r.ext}`,
+      url: `https://${config.domain}/i/${r.id}.${r.ext}`,
       createdAt: extractTimestampFromId(r.id),
       userId: r.user_id,
       username: r.username,
@@ -340,7 +371,7 @@ async function apiUpload({ request, config, user }) {
       .bind(id, ext, user.userId, user.username)
       .run();
 
-    return json({ data: `https://${config.domain}/${id}.${ext}` });
+    return json({ data: `https://${config.domain}/i/${id}.${ext}` });
   } catch (e) {
     console.error('R2 上传错误:', e);
     return json({ error: e.message }, 500);
@@ -355,8 +386,9 @@ async function apiDelete({ request, config }) {
     }
 
     // Extract media IDs from URLs for primary-key deletion
+    // URLs have the form https://domain/i/{id}.{ext}
     const ids = urls.map(u => {
-      const stem = u.split('/').pop();
+      const stem = new URL(u).pathname.split('/').pop();
       return stem.substring(0, stem.lastIndexOf('.'));
     });
     const placeholders = ids.map(() => '?').join(',');
@@ -368,8 +400,15 @@ async function apiDelete({ request, config }) {
         .bind(...ids)
         .run(),
       Promise.all(urls.map(async (u, i) => {
-        await cache.delete(new Request(u));
-        await config.r2Bucket.delete(ids[i]);
+        const id = ids[i];
+        const origin = new URL(u).origin;
+        const thumbUrl = `${origin}/t/${id}.jpg`;
+        await Promise.all([
+          cache.delete(new Request(u)),
+          cache.delete(new Request(thumbUrl)),
+          config.r2Bucket.delete(id),
+          config.r2Bucket.delete(`t/${id}`),
+        ]);
       })),
     ]);
 
@@ -378,6 +417,33 @@ async function apiDelete({ request, config }) {
       : json({ message: '删除成功' });
   } catch (e) {
     return json({ error: '删除失败', details: e.message }, 500);
+  }
+}
+
+async function apiUploadThumb({ request, config, url }) {
+  try {
+    const id = url.searchParams.get('id');
+    if (!id) return json({ error: '缺少文件 ID' }, 400);
+
+    // Security: verify the original file exists in the DB
+    const row = await config.database
+      .prepare('SELECT id FROM media WHERE id = ?')
+      .bind(id)
+      .first();
+    if (!row) return json({ error: '原始文件不存在' }, 404);
+
+    const formData = await request.formData();
+    const thumb = formData.get('thumb');
+    if (!thumb) return json({ error: '缺少缩略图文件' }, 400);
+
+    await config.r2Bucket.put(`t/${id}`, thumb.stream(), {
+      httpMetadata: { contentType: 'image/jpeg' },
+    });
+
+    return json({ ok: true });
+  } catch (e) {
+    console.error('缩略图上传错误:', e);
+    return json({ error: e.message }, 500);
   }
 }
 
@@ -404,24 +470,26 @@ async function serveMedia({ request, config }) {
     return cached;
   }
 
-  // Extract media ID from URL path: /{id}.{ext}
+  // Extract media info from URL path: /i/{id}.{ext} or /thumb/{id}.jpg
   const parsedMedia = parseMediaPathname(new URL(request.url).pathname);
   if (!parsedMedia) return new Response('File not found', { status: 404 });
-  const { mediaId, extension } = parsedMedia;
+  const { r2Key, extension, isThumb, originalId } = parsedMedia;
 
-  // Primary-key point-read — fastest possible D1 lookup
-  const mediaRow = await config.database
-    .prepare('SELECT id FROM media WHERE id = ?')
-    .bind(mediaId)
-    .first();
+  if (!isThumb) {
+    // Primary-key point-read — fastest possible D1 lookup
+    const mediaRow = await config.database
+      .prepare('SELECT id FROM media WHERE id = ?')
+      .bind(originalId)
+      .first();
 
-  if (!mediaRow) {
-    const resp = new Response('File not found', { status: 404 });
-    await cache.put(cacheKey, resp.clone());
-    return resp;
+    if (!mediaRow) {
+      const resp = new Response('File not found', { status: 404 });
+      await cache.put(cacheKey, resp.clone());
+      return resp;
+    }
   }
 
-  const mediaObjectHead = await config.r2Bucket.head(mediaId);
+  const mediaObjectHead = await config.r2Bucket.head(r2Key);
   if (!mediaObjectHead) return new Response('File not found', { status: 404 });
 
   const etag = mediaObjectHead.httpEtag || `"${mediaObjectHead.etag}"`;
@@ -439,7 +507,7 @@ async function serveMedia({ request, config }) {
     return new Response(null, { status: 200, headers: mediaHeaders });
   }
 
-  const mediaObject = await config.r2Bucket.get(mediaId);
+  const mediaObject = await config.r2Bucket.get(r2Key);
   if (!mediaObject) return new Response('File not found', { status: 404 });
 
   const resp = new Response(mediaObject.body, { headers: mediaHeaders });
@@ -447,23 +515,49 @@ async function serveMedia({ request, config }) {
   return resp;
 }
 
-// ─── Route Table (O(1) dispatch) ─────────────────────────────────────────────
+// ─── Route Table ──────────────────────────────────────────────────────────────
 //
-//  fn:     handler function receiving { request, url, config, env, user }
-//  method: enforce HTTP method (omit = any method allowed)
-//  auth:   'user' | 'admin' — router resolves session before dispatch
+//  Route key = first path segment (up to but not including the second '/').
+//  Flat paths like /api.upload have no second slash, so the key is the full slug.
+//
+//    /              → ''
+//    /login         → 'login'
+//    /i/abc.jpg     → 'i'
+//    /t/abc.jpg     → 't'
+//    /api.upload    → 'api.upload'
+//    /css/main.css  → 'css'
+//
+//  Single O(1) table lookup dispatches every request — zero branching.
+//
+//  fn:     handler receiving { request, url, config, env, user }
+//  method: restrict to a single HTTP method (omit = any)
+//  auth:   'user' | 'admin' — session resolved once, injected into ctx
+//  assets: true   — forward directly to env.ASSETS, no further processing
 //
 
 const ROUTES = {
-  '/':              { fn: serveIndex },
-  '/index.html':    { fn: serveIndex },
-  '/login':         { fn: serveLogin },
-  '/api/login':     { fn: apiLogin,    method: 'POST' },
-  '/api/logout':    { fn: apiLogout,   method: 'POST' },
-  '/api/session':   { fn: apiSession },
-  '/api/media':     { fn: apiMedia,    auth: 'admin' },
-  '/upload':        { fn: apiUpload,   method: 'POST', auth: 'user' },
-  '/delete-images': { fn: apiDelete,   method: 'POST', auth: 'admin' },
+  // ── Static assets (forwarded to Workers Assets, no config needed) ───────────
+  'css':                { assets: true },
+  'js':                 { assets: true },
+  'fonts':              { assets: true },
+  'images':             { assets: true },
+
+  // ── Pages ──────────────────────────────────────────────────────────────────
+  '':                   { fn: serveIndex },            // GET  /
+  'login':              { fn: serveLogin },            // GET  /login
+
+  // ── Media serving (handler enforces GET/HEAD internally) ───────────────────
+  'i':                  { fn: serveMedia },            // GET  /i/{id}.{ext}
+  't':                  { fn: serveMedia },            // GET  /t/{id}.jpg  (thumbnail)
+
+  // ── API ────────────────────────────────────────────────────────────────────
+  'api.login':          { fn: apiLogin,         method: 'POST' },
+  'api.logout':         { fn: apiLogout,        method: 'POST' },
+  'api.session':        { fn: apiSession },
+  'api.media':          { fn: apiMedia,         auth: 'admin' },
+  'api.upload':         { fn: apiUpload,        method: 'POST', auth: 'user' },
+  'api.upload-thumb':   { fn: apiUploadThumb,   method: 'POST', auth: 'user' },
+  'api.delete-images':  { fn: apiDelete,        method: 'POST', auth: 'admin' },
 };
 
 // ─── Entry Point ─────────────────────────────────────────────────────────────
@@ -473,29 +567,29 @@ export default {
     const url = new URL(request.url);
     const { pathname } = url;
 
-    // ① Static assets — extract first segment, O(1) Set lookup
+    // ① Derive route key — one indexOf + one substring, zero branching
     const seg1End = pathname.indexOf('/', 1);
-    if (seg1End > 0 && STATIC_SEGMENTS.has(pathname.substring(1, seg1End))) {
-      return env.ASSETS.fetch(request);
-    }
+    const routeKey = seg1End > 0 ? pathname.substring(1, seg1End) : pathname.substring(1);
 
-    // ② Route table lookup — O(1) property access
-    const route = ROUTES[pathname];
-    if (!route) {
-      return serveMedia({ request, config: buildConfig(env) });
-    }
+    // ② Single O(1) table lookup — resolves every request type
+    const route = ROUTES[routeKey];
+    if (!route) return new Response('Not Found', { status: 404 });
 
-    // ③ Method gate
+    // ③ Static assets — no config, no auth, return immediately
+    if (route.assets) return env.ASSETS.fetch(request);
+
+    // ④ Method gate
     if (route.method && request.method !== route.method) {
       return new Response('Method Not Allowed', { status: 405 });
     }
 
-    const config = buildConfig(env);
-    const ctx = { request, url, config, env, user: null };
+    // ⑤ Config — initialised once per isolate lifetime, reused on every request
+    _config ??= buildConfig(env);
+    const ctx = { request, url, config: _config, env, user: null };
 
-    // ④ Auth middleware (resolved once, injected into ctx)
+    // ⑥ Auth middleware (resolved once, injected into ctx)
     if (route.auth) {
-      const user = await getSessionUser(request, config);
+      const user = await getSessionUser(request, _config);
       if (!user) return json({ error: 'Unauthorized' }, 401);
       if (route.auth === 'admin' && user.role !== 'admin') {
         return json({ error: 'Forbidden' }, 403);
@@ -503,7 +597,7 @@ export default {
       ctx.user = user;
     }
 
-    // ⑤ Dispatch
+    // ⑦ Dispatch
     return route.fn(ctx);
   },
 };
