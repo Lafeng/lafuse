@@ -150,16 +150,19 @@ function parseMediaPathname(pathname) {
   return { r2Key, extension, isThumb, originalId };
 }
 
-function buildMediaHeaders({ etag, lastModified, contentType }) {
+function buildMediaHeaders({ etag, lastModified, contentType, contentLength }) {
   const headers = new Headers({
     'Content-Type': contentType,
     'Content-Disposition': 'inline',
     ETag: etag,
-    'Cache-Control': `public, max-age=${CACHE_TTL.IMAGE}`,
-    'CDN-Cache-Control': `public, max-age=${CACHE_TTL.IMAGE}`,
+    // immutable: IDs are random & never change, skip revalidation within max-age
+    'Cache-Control': `public, max-age=${CACHE_TTL.IMAGE}, immutable`,
+    'CDN-Cache-Control': `public, max-age=${CACHE_TTL.IMAGE}, immutable`,
   });
 
   if (lastModified) headers.set('Last-Modified', lastModified);
+  // Content-Length is required by Safari to cache responses correctly
+  if (contentLength != null) headers.set('Content-Length', String(contentLength));
   return headers;
 }
 
@@ -449,7 +452,7 @@ async function apiUploadThumb({ request, config, url }) {
 
 // ─── Fallback Handler: Media Serving ─────────────────────────────────────────
 
-async function serveMedia({ request, config }) {
+async function serveMedia({ request, config, executionCtx }) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response('Method Not Allowed', { status: 405 });
   }
@@ -497,7 +500,8 @@ async function serveMedia({ request, config }) {
     ? new Date(mediaObjectHead.uploaded).toUTCString()
     : undefined;
   const contentType = mediaObjectHead.httpMetadata?.contentType || CONTENT_TYPES[extension] || 'application/octet-stream';
-  const mediaHeaders = buildMediaHeaders({ etag, lastModified, contentType });
+  const contentLength = mediaObjectHead.size ?? null;
+  const mediaHeaders = buildMediaHeaders({ etag, lastModified, contentType, contentLength });
 
   if (shouldReturnNotModified(request, etag, lastModified)) {
     return buildNotModifiedResponse(mediaHeaders);
@@ -511,7 +515,8 @@ async function serveMedia({ request, config }) {
   if (!mediaObject) return new Response('File not found', { status: 404 });
 
   const resp = new Response(mediaObject.body, { headers: mediaHeaders });
-  await cache.put(cacheKey, resp.clone());
+  // Non-blocking cache write — response is returned to the client immediately
+  executionCtx?.waitUntil(cache.put(cacheKey, resp.clone()));
   return resp;
 }
 
@@ -563,7 +568,7 @@ const ROUTES = {
 // ─── Entry Point ─────────────────────────────────────────────────────────────
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, executionCtx) {
     const url = new URL(request.url);
     const { pathname } = url;
 
@@ -585,7 +590,7 @@ export default {
 
     // ⑤ Config — initialised once per isolate lifetime, reused on every request
     _config ??= buildConfig(env);
-    const ctx = { request, url, config: _config, env, user: null };
+    const ctx = { request, url, config: _config, env, executionCtx, user: null };
 
     // ⑥ Auth middleware (resolved once, injected into ctx)
     if (route.auth) {
