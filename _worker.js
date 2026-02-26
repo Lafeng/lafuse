@@ -1,27 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // Lafuse Worker — High-performance Cloudflare Workers entry point
-//
-// Architecture:
-//   1. Constants & Config
-//   2. Response utilities
-//   3. Auth utilities (rate limiting, sessions)
-//   4. Route handlers (grouped by domain)
-//   5. Route table (declarative, O(1) dispatch)
-//   6. Router entry point
-//
-// Database schema (D1):
-//   CREATE TABLE users (
-//     id INTEGER PRIMARY KEY AUTOINCREMENT,
-//     username TEXT UNIQUE NOT NULL,
-//     password_hash TEXT NOT NULL,
-//     role TEXT NOT NULL DEFAULT 'user'
-//   );
-//   CREATE TABLE media (
-//     id TEXT PRIMARY KEY,
-//     ext TEXT NOT NULL,
-//     user_id INTEGER,
-//     username TEXT
-//   );
+// Implements a simple routing system with built-in auth, media handling, and caching.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -335,7 +314,7 @@ async function apiMedia({ config, url }) {
   const [countRow, dataResult] = await Promise.all([
     config.database.prepare('SELECT COUNT(*) as count FROM media').first(),
     config.database
-      .prepare('SELECT id, ext, user_id, username FROM media ORDER BY id DESC LIMIT ? OFFSET ?')
+      .prepare('SELECT id, ext, size, user_id, username FROM media ORDER BY id DESC LIMIT ? OFFSET ?')
       .bind(pageSize, offset)
       .all(),
   ]);
@@ -344,6 +323,7 @@ async function apiMedia({ config, url }) {
     media: dataResult.results.map(r => ({
       url: `https://${config.domain}/i/${r.id}.${r.ext}`,
       createdAt: extractTimestampFromId(r.id),
+      size: r.size ?? null,
       userId: r.user_id,
       username: r.username,
     })),
@@ -370,8 +350,8 @@ async function apiUpload({ request, config, user }) {
     });
 
     await config.database
-      .prepare('INSERT INTO media (id, ext, user_id, username) VALUES (?, ?, ?, ?)')
-      .bind(id, ext, user.userId, user.username)
+      .prepare('INSERT INTO media (id, ext, size, user_id, username) VALUES (?, ?, ?, ?, ?)')
+      .bind(id, ext, file.size, user.userId, user.username)
       .run();
 
     return json({ data: `https://${config.domain}/i/${id}.${ext}` });

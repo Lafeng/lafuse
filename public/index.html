@@ -98,14 +98,7 @@
             <span>已选中 <strong x-text="adminSelectedKeys.size"></strong> 个</span>
           </div>
           <div class="actions" :style="adminSelectedKeys.size === 0 ? 'visibility:hidden' : ''">
-            <div class="dropdown" @mouseenter="adminDropdownOpen = true" @mouseleave="adminDropdownOpen = false">
-              <button class="primary-button">复制</button>
-              <div class="dropdown-content" x-show="adminDropdownOpen">
-                <button @click="adminCopyLinks('url')">URL</button>
-                <button @click="adminCopyLinks('bbcode')">BBCode</button>
-                <button @click="adminCopyLinks('markdown')">Markdown</button>
-              </div>
-            </div>
+            <button class="primary-button" @click="adminCopySelected()">复制链接</button>
             <button class="ghost-button" @click="adminToggleSelectAll">全选</button>
             <button class="danger-button" @click="adminDeleteSelected">删除</button>
           </div>
@@ -134,9 +127,14 @@
                 <div class="skeleton"></div>
               </div>
               <div class="media-meta">
-                <span x-text="item.idLabel"></span>
-                <span x-text="item.timeLabel"></span>
-                <span x-text="item.userLabel"></span>
+                <span class="media-meta-id" x-text="item.idLabel"></span>
+                <div class="media-meta-row">
+                  <span class="media-meta-time" x-text="item.timeLabel"></span>
+                  <template x-if="item.sizeLabel">
+                    <span class="media-meta-size" x-text="item.sizeLabel"></span>
+                  </template>
+                </div>
+                <span class="media-meta-user" x-text="item.userLabel"></span>
               </div>
             </article>
           </template>
