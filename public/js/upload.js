@@ -38,7 +38,13 @@ const getMediaMeta = (item) => {
     hasThumb,
     thumbUrl,
     idLabel: stem,
-    timeLabel: new Date(item.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
+    sizeLabel: item.size != null ? formatBytes(item.size) : null,
+    timeLabel: new Date(item.createdAt).toLocaleString('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+      month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+      hour12: false,
+    }),
     userLabel: item.username
   };
 };
@@ -171,7 +177,6 @@ document.addEventListener('alpine:init', () => {
     adminTotalPages: 1,
     adminTotalCount: 0,
     adminLoading: false,
-    adminDropdownOpen: false,
 
     get adminPageLabel() {
       return `第 ${this.adminCurrentPage} / ${this.adminTotalPages} 页 (共 ${this.adminTotalCount} 个)`;
@@ -184,6 +189,8 @@ document.addEventListener('alpine:init', () => {
       });
       await this.loadSession();
       this.setupPasteListener();
+      // Hash-based navigation: back/forward button support
+      window.addEventListener('popstate', () => this.onHashChange());
     },
     readCompressionPreference() {
       const raw = localStorage.getItem(COMPRESSION_PREF_KEY);
@@ -201,20 +208,33 @@ document.addEventListener('alpine:init', () => {
         return;
       }
       this.user = data.user;
+      // Restore view from URL hash on page load
+      const hash = location.hash.slice(1);
+      if (hash === 'admin' && this.user.role === 'admin') {
+        this.view = 'admin';
+        await this.adminLoadMedia();
+      }
     },
     async logout() {
       await fetch('/api.logout', { method: 'POST' });
       window.location.href = '/login';
     },
 
-    // === View toggle ===
+    // === View toggle (hash-based, enables browser back/forward) ===
     async toggleView() {
       if (this.user?.role !== 'admin') return;
-      if (this.view === 'upload') {
+      const next = this.view === 'upload' ? 'admin' : 'upload';
+      history.pushState({ view: next }, '', `#${next}`);
+      await this.setView(next);
+    },
+    async onHashChange() {
+      const hash = location.hash.slice(1) || 'upload';
+      await this.setView(hash);
+    },
+    async setView(view) {
+      if (view === 'admin' && this.user?.role === 'admin') {
         this.view = 'admin';
-        if (this.adminMedia.length === 0) {
-          await this.adminLoadMedia();
-        }
+        if (this.adminMedia.length === 0) await this.adminLoadMedia();
       } else {
         this.view = 'upload';
       }
@@ -332,6 +352,16 @@ document.addEventListener('alpine:init', () => {
     formatBytes,
 
     // === Admin methods ===
+    async adminCopySelected() {
+      const urls = [...this.adminSelectedKeys];
+      if (!urls.length) return;
+      try {
+        await navigator.clipboard.writeText(urls.join('\n'));
+        this.toast('已复制到剪贴板', 'success');
+      } catch {
+        this.toast('复制失败', 'error');
+      }
+    },
     async adminLoadMedia() {
       this.adminLoading = true;
       try {

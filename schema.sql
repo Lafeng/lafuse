@@ -10,6 +10,7 @@ CREATE TABLE users (
 CREATE TABLE media (
   id TEXT PRIMARY KEY,
   ext TEXT NOT NULL,
+  size INTEGER,
   user_id INTEGER,
   username TEXT
 );
