@@ -481,12 +481,15 @@ body {
   display: grid;
   place-items: center;
   background: rgba(15, 118, 110, 0.03);
+  container-type: inline-size;
+  overflow: hidden;
 }
 
 .media-image,
 .media-video {
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: 100cqi;
   object-fit: contain;
   opacity: 0;
   transition: opacity 0.3s ease;
