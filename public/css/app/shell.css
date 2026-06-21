@@ -1,0 +1,153 @@
+.app-shell {
+  width: min(1480px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 22px 24px 28px;
+}
+
+.app-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto minmax(180px, 1fr);
+  align-items: center;
+  gap: 28px;
+  min-height: 62px;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+.brand {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand-mark {
+  position: relative;
+  display: block;
+  width: 140px;
+  height: 62px;
+}
+
+.brand-mark img {
+  display: block;
+  width: 140px;
+  height: auto;
+  filter: drop-shadow(0 10px 18px rgba(15, 118, 110, 0.11));
+}
+
+.view-tabs,
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid rgba(203, 213, 218, 0.68);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 8px 22px rgba(18, 25, 38, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.80);
+}
+
+.view-tabs button,
+.segmented button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 560;
+  padding: 0 15px;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.view-tabs button.active,
+.segmented button.active {
+  background: linear-gradient(180deg, #1c2533, #111827);
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(17, 24, 39, 0.14);
+}
+
+.account {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-name {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace {
+  display: grid;
+  gap: 18px;
+}
+
+.view-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.workspace-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18px;
+}
+
+.workspace-head h1 {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: clamp(25px, 2.55vw, 36px);
+  font-weight: 610;
+  letter-spacing: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.workspace-actions,
+.drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.selection-inline,
+.toolbar-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.selection-inline {
+  min-height: 36px;
+  padding-right: 10px;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.selection-inline strong {
+  color: var(--text);
+  font-weight: 600;
+}

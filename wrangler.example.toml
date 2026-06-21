@@ -15,6 +15,12 @@ AUTH_SALT="xxxxxxxxxxxx"
 # SESSION_COOKIE_NAME
 # SESSION_TTL_DAYS
 # MAX_SIZE_MB
+# LOW_COST_MODE="1"
+# MEDIA_PUBLIC_ORIGIN="https://media.example.com"
+# ENABLE_UPLOAD_DEDUPE="0"
+# ENABLE_THUMBNAILS="0"
+# ENABLE_TOTAL_COUNT="0"
+# SEARCH_MODE="prefix"
 
 [[kv_namespaces]]
 binding = "KV_NAMESPACE"
@@ -39,8 +45,13 @@ name = "lafuse"
 
 [env.production.vars]
 DOMAIN="xxxxxxxxxxxx"
-AUTH_SALT="xxxxxxxxxxxx"
 MAX_SIZE_MB="500"
+LOW_COST_MODE="1"
+MEDIA_PUBLIC_ORIGIN="https://media.example.com"
+# ENABLE_UPLOAD_DEDUPE="0"
+# ENABLE_THUMBNAILS="0"
+# ENABLE_TOTAL_COUNT="0"
+# SEARCH_MODE="prefix"
 
 [[env.production.kv_namespaces]]
 binding = "KV_NAMESPACE"

@@ -5,19 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>登录 - Lafuse</title>
   <link rel="icon" href="https://p1.meituan.net/csc/c195ee91001e783f39f41ffffbbcbd484286.ico" type="image/x-icon">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/auth.css">
 </head>
 <body>
   <div class="auth-page" x-data="loginApp()" x-init="init()">
     <div class="auth-card">
       <div class="brand">
-        <div class="brand-mark">LF</div>
-        <div class="brand-text">
-          <h1>Lafuse</h1>
-          <p>用现代方式管理你的资源</p>
+        <div class="brand-mark">
+          <img src="/lafuse-logo.png" alt="" width="720" height="320">
         </div>
       </div>
       <form class="auth-form" @submit.prevent="submit">

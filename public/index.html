@@ -3,159 +3,336 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Lafuse-基于CloudFlare的图床服务">
-  <meta name="keywords" content="Lafuse,Workers图床, Pages图床,R2储存, Cloudflare, Workers, 图床">
-  <title>Lafuse-基于CloudFlare的图床服务</title>
+  <meta name="description" content="Lafuse 轻量资源存储与图库管理">
+  <meta name="keywords" content="Lafuse, Cloudflare Workers, R2, D1, 图床, 资源存储">
+  <title>Lafuse 资源库</title>
   <link rel="icon" href="https://p1.meituan.net/csc/c195ee91001e783f39f41ffffbbcbd484286.ico" type="image/x-icon">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/upload.css">
 </head>
 <body>
-  <div class="page" x-data="uploadApp()" x-init="init()">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark">LF</div>
-        <div>
-          <h1>Lafuse</h1>
-          <p x-Lafuse="view === 'admin' ? '管理上传的媒体资源' : '轻量、快速、现代化的上传体验'"></p>
-        </div>
-      </div>
-      <div class="user-actions">
-        <span class="user"
-              :class="{ 'user-admin': user?.role === 'admin' }"
-              :title="user?.role === 'admin' ? '点击切换管理面板' : ''"
-              @click="user?.role === 'admin' && toggleView()"
-              x-text="(user?.role === 'admin' ? '👑 ' : '') + (user?.username ?? '')"></span>
-        <button class="ghost-button" @click="logout">退出</button>
+  <div
+    class="app-shell"
+    x-data="uploadApp()"
+    x-init="init()"
+    @keydown.escape.window="adminActiveAsset = null"
+    @dragenter.window.prevent="dragActive = true"
+    @dragover.window.prevent="dragActive = true"
+    @dragleave.window="handleDragLeave($event)"
+    @drop.window.prevent="handleDrop($event)"
+  >
+    <header class="app-header">
+      <a class="brand" href="/" aria-label="Lafuse 资源库">
+        <span class="brand-mark">
+          <img src="/lafuse-logo.png" alt="" width="720" height="320">
+        </span>
+      </a>
+
+      <nav class="view-tabs" x-show="user?.role === 'admin'" x-cloak>
+        <button type="button" :class="{ active: view === 'upload' }" @click="setViewWithHistory('upload')">上传</button>
+        <button type="button" :class="{ active: view === 'admin' }" @click="setViewWithHistory('admin')">图库</button>
+      </nav>
+
+      <div class="account">
+        <span class="account-name" x-text="user?.username ?? ''"></span>
+        <button class="button button-subtle" type="button" @click="logout">退出</button>
       </div>
     </header>
 
-    <!-- ============ Upload View ============ -->
-    <main class="content" x-show="view === 'upload'" x-transition>
-      <section class="upload-card" :class="{ 'drag-active': dragActive }" @dragover.prevent="dragActive = true" @dragleave.prevent="dragActive = false" @drop.prevent="handleDrop($event)">
-        <div class="upload-header">
+    <main class="workspace">
+      <section class="view-panel upload-workspace" x-show="view === 'upload'">
+        <div class="workspace-head">
           <div>
-            <h2>上传资源</h2>
-            <p>支持拖拽、点击选择或粘贴上传</p>
+            <p class="eyebrow">Upload</p>
+            <h1>上传资源</h1>
           </div>
-          <div class="toggle">
-            <span>图片压缩</span>
-            <button class="toggle-button" :class="{ active: enableCompression }" @click="enableCompression = !enableCompression"></button>
+          <div class="workspace-actions">
+            <label class="switch">
+              <input type="checkbox" x-model="enableCompression">
+              <span></span>
+              <em>图片压缩</em>
+            </label>
           </div>
         </div>
 
-        <div class="drop-zone" @click="openFilePicker">
-          <input type="file" multiple class="file-input" x-ref="fileInput" @change="handleFiles($event)">
-          <div class="drop-content">
-            <div class="drop-icon">⬆</div>
-            <div class="drop-text">
-              <strong>拖拽文件到这里</strong>
-              <span>或点击选择</span>
+        <section class="upload-console">
+          <input class="file-input" type="file" multiple x-ref="fileInput" @change="handleFiles($event)">
+
+          <button class="upload-stage" type="button" :class="{ 'is-dragging': dragActive }" @click="openFilePicker">
+            <span class="stage-action" aria-hidden="true">+</span>
+            <span class="stage-copy">
+              <strong>添加文件</strong>
+              <small>图片、视频、文档、压缩包</small>
+            </span>
+            <span class="stage-meta">
+              <span><strong x-text="MAX_PARALLEL_UPLOADS"></strong> 并发</span>
+              <span x-show="enableCompression">图片自动压缩</span>
+              <span x-show="!enableCompression">保留原图</span>
+            </span>
+          </button>
+
+          <section class="upload-stream panel">
+            <div class="stream-toolbar">
+              <div>
+                <p class="eyebrow">Queue</p>
+                <h2>上传记录</h2>
+              </div>
+              <div class="stream-summary" aria-label="上传状态">
+                <span><strong x-text="uploads.length"></strong> 总计</span>
+                <span><strong x-text="uploadStats.active"></strong> 进行中</span>
+                <span><strong x-text="uploadStats.done"></strong> 完成</span>
+                <span><strong x-text="uploadStats.error"></strong> 失败</span>
+              </div>
+              <div class="stream-actions">
+                <button class="button button-subtle" type="button" @click="copySuccessfulLinks('url')" :disabled="!successfulUploads.length">复制全部 URL</button>
+                <button class="button button-subtle" type="button" @click="copySuccessfulLinks('markdown')" :disabled="!successfulUploads.length">复制全部 MD</button>
+                <button class="button button-plain" type="button" @click="clearFinished" :disabled="!uploadStats.done">清理完成</button>
+              </div>
+            </div>
+
+            <div class="stream-empty" x-show="!uploads.length" x-cloak>
+              <strong>还没有上传记录</strong>
+              <span>等待新的资源。</span>
+            </div>
+
+            <div class="upload-table" x-show="uploads.length" x-cloak>
+              <div class="upload-table-head">
+                <span>文件</span>
+                <span>状态</span>
+                <span>链接</span>
+                <span></span>
+              </div>
+              <template x-for="item in uploads" :key="item.id">
+                <article class="upload-row" :class="`is-${item.status}`">
+                  <div class="row-file">
+                    <div class="file-thumb">
+                      <template x-if="item.previewSrc">
+                        <img :src="item.previewSrc" :alt="item.name" @error="item.previewSrc = ''">
+                      </template>
+                      <template x-if="!item.previewSrc">
+                        <span x-text="item.extension"></span>
+                      </template>
+                    </div>
+                    <div class="upload-info">
+                      <strong x-text="item.name"></strong>
+                      <span>
+                        <span x-text="formatBytes(item.size)"></span>
+                        <template x-if="item.processedSize && item.processedSize !== item.size">
+                          <span> -> <span x-text="formatBytes(item.processedSize)"></span></span>
+                        </template>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="row-status">
+                    <div class="status-pill" x-text="statusText(item)"></div>
+                    <div class="progress-track">
+                      <span :style="`width: ${item.progress}%`"></span>
+                    </div>
+                  </div>
+
+                  <div class="row-links">
+                    <template x-if="item.url">
+                      <div class="link-cluster">
+                        <button class="copy-chip" type="button" @click="copyItemLink(item, 'url')">
+                          <span>URL</span>
+                          <em x-text="item.url"></em>
+                        </button>
+                        <button class="copy-chip" type="button" @click="copyItemLink(item, 'markdown')">
+                          <span>MD</span>
+                          <em x-text="formatLinks([linkItem(item)], 'markdown')"></em>
+                        </button>
+                      </div>
+                    </template>
+                    <template x-if="!item.url">
+                      <span class="link-pending" x-text="item.status === 'error' ? item.error : '等待生成链接'"></span>
+                    </template>
+                  </div>
+
+                  <div class="row-actions">
+                    <button class="text-button" type="button" x-show="item.status === 'error'" @click="retryUpload(item)">重试</button>
+                    <button class="text-button muted" type="button" x-show="!['queued', 'compressing', 'thumbnailing', 'hashing', 'uploading'].includes(item.status)" @click="removeUpload(item)">移除</button>
+                  </div>
+                </article>
+              </template>
+            </div>
+          </section>
+        </section>
+      </section>
+
+      <section class="view-panel library-workspace" x-show="view === 'admin'" x-cloak>
+        <div class="workspace-head">
+          <div>
+            <p class="eyebrow">Library</p>
+            <h1>资源图库</h1>
+          </div>
+          <div class="workspace-actions" :class="{ 'has-selection': adminSelectedIds.size }">
+            <div class="selection-inline" x-show="adminSelectedIds.size" x-cloak>
+              <span>已选 <strong x-text="adminSelectedIds.size"></strong></span>
+              <button class="button button-subtle" type="button" @click="adminCopySelected('url')">复制 URL</button>
+              <button class="button button-subtle" type="button" @click="adminCopySelected('markdown')">复制 Markdown</button>
+              <button class="button button-danger" type="button" @click="adminDeleteSelected">删除</button>
+              <button class="button button-plain" type="button" @click="adminClearSelection">取消</button>
+            </div>
+            <div class="toolbar-primary">
+              <button class="button button-subtle" type="button" @click="adminRefresh" :disabled="adminLoading">刷新</button>
+              <button class="button button-subtle" type="button" @click="adminToggleSelectAll" :disabled="!visibleAdminMedia.length">全选</button>
             </div>
           </div>
         </div>
 
-        <div class="upload-list" x-show="uploads.length">
-          <template x-for="item in uploads" :key="item.id">
-            <div class="upload-item" :class="item.status">
-              <div class="upload-meta">
-                <strong x-text="item.name"></strong>
-                <span x-text="formatBytes(item.size)"></span>
-              </div>
-              <div class="upload-progress">
-                <div class="progress-bar" :style="`width: ${item.progress}%`"></div>
-              </div>
-              <div class="upload-status" x-text="statusText(item)"></div>
-            </div>
-          </template>
-        </div>
-      </section>
-
-      <section class="link-card">
-        <div class="link-header">
-          <h3>链接输出</h3>
-          <div class="format-buttons">
-            <button :class="{ active: format === 'url' }" @click="setFormat('url')">URL</button>
-            <button :class="{ active: format === 'bbcode' }" @click="setFormat('bbcode')">BBCode</button>
-            <button :class="{ active: format === 'markdown' }" @click="setFormat('markdown')">Markdown</button>
+        <section class="panel library-toolbar">
+          <div class="library-stats">
+            <span>当前页 <strong x-text="adminMedia.length"></strong></span>
+            <span>总计 <strong x-text="adminTotalLabel"></strong></span>
+            <span>已选 <strong x-text="adminSelectedIds.size"></strong></span>
           </div>
-        </div>
-        <textarea readonly placeholder="上传后自动生成链接" x-model="linkOutput"></textarea>
-        <div class="link-actions">
-          <button class="primary-button" @click="copyLinks" :disabled="!linkOutput">复制链接</button>
-        </div>
-      </section>
-    </main>
-
-    <!-- ============ Admin View ============ -->
-    <template x-if="user?.role === 'admin'">
-      <div x-show="view === 'admin'" x-transition>
-        <section class="admin-toolbar">
-          <div class="stats">
-            <span>文件 <strong x-text="adminTotalCount"></strong> 个</span>
-            <span>已选中 <strong x-text="adminSelectedKeys.size"></strong> 个</span>
-          </div>
-          <div class="actions" :style="adminSelectedKeys.size === 0 ? 'visibility:hidden' : ''">
-            <button class="primary-button" @click="adminCopySelected()">复制链接</button>
-            <button class="ghost-button" @click="adminToggleSelectAll">全选</button>
-            <button class="danger-button" @click="adminDeleteSelected">删除</button>
+          <div class="filters">
+            <label class="search-field">
+              <span>搜索</span>
+              <input type="search" x-model.trim="adminSearch" placeholder="文件名">
+            </label>
+            <label>
+              <span>类型</span>
+              <select x-model="adminKind">
+                <option value="all">全部</option>
+                <option value="image">图片</option>
+                <option value="video">视频</option>
+                <option value="document">文档</option>
+                <option value="archive">压缩包</option>
+                <option value="file">其他</option>
+              </select>
+            </label>
+            <label>
+              <span>上传者</span>
+              <select x-model="adminUploader">
+                <option value="all">全部</option>
+                <template x-for="name in adminUploaderOptions" :key="name">
+                  <option :value="name" x-text="name"></option>
+                </template>
+              </select>
+            </label>
+            <label>
+              <span>排序</span>
+              <select x-model="adminSort">
+                <option value="newest">最新</option>
+                <option value="oldest">最旧</option>
+                <option value="largest">最大</option>
+                <option value="smallest">最小</option>
+              </select>
+            </label>
           </div>
         </section>
 
         <section class="gallery">
           <template x-if="adminLoading">
-            <div class="loading">加载中...</div>
+            <div class="state-card">正在加载资源...</div>
           </template>
-          <template x-if="!adminLoading && adminMedia.length === 0">
-            <div class="empty">暂无文件</div>
+          <template x-if="!adminLoading && visibleAdminMedia.length === 0">
+            <div class="state-card">没有匹配的资源</div>
           </template>
-          <template x-for="item in adminMedia" :key="item.url">
-            <article class="media-card" :class="{ selected: adminSelectedKeys.has(item.url) }" @click="adminToggleSelection(item)">
-              <div class="media-type" x-text="item.extension"></div>
-              <div class="media-preview">
-                <template x-if="item.hasThumb">
-                  <img class="media-image" :data-src="item.thumbUrl" alt="preview">
+          <template x-for="item in visibleAdminMedia" :key="item.id">
+            <article class="asset-card" :class="{ selected: adminSelectedIds.has(item.id) }" @click="adminOpenAsset(item)">
+              <label class="select-box" @click.stop>
+                <input type="checkbox" :checked="adminSelectedIds.has(item.id)" @change="adminToggleSelection(item, $event.target.checked)">
+                <span></span>
+              </label>
+              <span class="file-chip" x-text="item.extension"></span>
+              <div class="asset-preview">
+                <template x-if="item.previewSrc">
+                  <img :src="item.previewSrc" :alt="item.displayName" loading="lazy" @error="handleAssetPreviewError(item)">
                 </template>
-                <template x-if="!item.hasThumb">
-                  <div class="media-file">
-                    <div class="media-file-ext" x-text="item.extension.toUpperCase()"></div>
-                    <div>📄</div>
+                <template x-if="!item.previewSrc">
+                  <div class="file-preview">
+                    <strong x-text="item.extension.toUpperCase()"></strong>
+                    <span>FILE</span>
                   </div>
                 </template>
-                <div class="skeleton"></div>
               </div>
-              <div class="media-meta">
-                <span class="media-meta-id" x-text="item.idLabel"></span>
-                <div class="media-meta-row">
-                  <span class="media-meta-time" x-text="item.timeLabel"></span>
-                  <template x-if="item.sizeLabel">
-                    <span class="media-meta-size" x-text="item.sizeLabel"></span>
-                  </template>
+              <div class="asset-body">
+                <strong x-text="item.displayName"></strong>
+                <div class="asset-meta-line">
+                  <span x-text="item.timeLabel"></span>
+                  <span x-text="item.sizeLabel || '-'"></span>
                 </div>
-                <span class="media-meta-user" x-text="item.userLabel"></span>
+                <div class="asset-meta-line">
+                  <span x-text="item.kindLabel"></span>
+                  <span x-text="item.userLabel || '-'"></span>
+                </div>
+              </div>
+              <div class="asset-actions">
+                <button type="button" @click.stop="copyAsset(item, 'url')">复制</button>
+                <a :href="item.url" target="_blank" rel="noopener" @click.stop>打开</a>
               </div>
             </article>
           </template>
         </section>
 
-        <section class="pagination" x-show="adminTotalPages > 1">
-          <button class="ghost-button" @click="adminGoToPage(adminCurrentPage - 1)" :disabled="adminCurrentPage <= 1">上一页</button>
+        <section class="pagination" x-show="adminCurrentPage > 1 || adminHasMore" x-cloak>
+          <button class="button button-subtle" type="button" @click="adminGoPreviousPage" :disabled="adminCurrentPage <= 1">上一页</button>
           <span x-text="adminPageLabel"></span>
-          <button class="ghost-button" @click="adminGoToPage(adminCurrentPage + 1)" :disabled="adminCurrentPage >= adminTotalPages">下一页</button>
+          <button class="button button-subtle" type="button" @click="adminGoNextPage" :disabled="!adminHasMore">下一页</button>
         </section>
-      </div>
-    </template>
 
-    <div class="toast-stack">
+        <template x-if="adminActiveAsset">
+          <aside class="asset-drawer">
+            <div class="drawer-backdrop" @click="adminActiveAsset = null"></div>
+            <section class="drawer-panel" x-transition>
+              <div class="drawer-head">
+                <div>
+                  <p class="eyebrow">Details</p>
+                  <h2 x-text="adminActiveAsset.displayName"></h2>
+                </div>
+                <button class="icon-close" type="button" aria-label="关闭" @click="adminActiveAsset = null">x</button>
+              </div>
+              <div class="drawer-preview">
+                <template x-if="adminActiveAsset.detailSrc">
+                  <img :src="adminActiveAsset.detailSrc" :alt="adminActiveAsset.displayName" @error="adminActiveAsset.detailSrc = ''">
+                </template>
+                <template x-if="!adminActiveAsset.detailSrc">
+                  <div class="file-preview large">
+                    <strong x-text="adminActiveAsset.extension.toUpperCase()"></strong>
+                    <span>FILE</span>
+                  </div>
+                </template>
+              </div>
+              <dl class="detail-list">
+                <div><dt>文件名</dt><dd x-text="adminActiveAsset.displayName"></dd></div>
+                <div><dt>类型</dt><dd x-text="adminActiveAsset.kindLabel"></dd></div>
+                <div><dt>大小</dt><dd x-text="adminActiveAsset.sizeLabel || '-'"></dd></div>
+                <div><dt>上传者</dt><dd x-text="adminActiveAsset.userLabel || '-'"></dd></div>
+                <div><dt>时间</dt><dd x-text="adminActiveAsset.fullTimeLabel"></dd></div>
+                <div><dt>扩展名</dt><dd x-text="adminActiveAsset.extension"></dd></div>
+              </dl>
+              <label class="url-field">
+                <span>URL</span>
+                <input type="text" readonly :value="adminActiveAsset.url">
+              </label>
+              <div class="drawer-actions">
+                <button class="button button-primary" type="button" @click="copyAsset(adminActiveAsset, 'url')">复制 URL</button>
+                <button class="button button-subtle" type="button" @click="copyAsset(adminActiveAsset, 'markdown')">复制 Markdown</button>
+                <a class="button button-subtle" :href="adminActiveAsset.url" target="_blank" rel="noopener">打开原文件</a>
+                <button class="button button-danger" type="button" @click="adminDeleteItem(adminActiveAsset)">删除</button>
+              </div>
+            </section>
+          </aside>
+        </template>
+      </section>
+    </main>
+
+    <div class="toast-stack" aria-live="polite">
       <template x-for="toast in toasts" :key="toast.id">
         <div class="toast" :class="toast.tone" x-text="toast.message"></div>
       </template>
     </div>
   </div>
 
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/core/config.js"></script>
+  <script src="/js/core/formatters.js"></script>
+  <script src="/js/core/media.js"></script>
+  <script src="/js/core/clipboard.js"></script>
+  <script src="/js/core/imageTools.js"></script>
+  <script src="/js/core/uploadTransport.js"></script>
   <script src="/js/upload.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </body>
 </html>

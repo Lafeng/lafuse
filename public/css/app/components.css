@@ -1,0 +1,65 @@
+.button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 540;
+  padding: 0 12px;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
+  white-space: nowrap;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.button-primary {
+  border-color: rgba(15, 118, 110, 0.14);
+  background: linear-gradient(180deg, #147970, #0b625c);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(15, 118, 110, 0.15);
+}
+
+.button-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #116e66, #0a5752);
+}
+
+.button-subtle {
+  border-color: rgba(203, 213, 218, 0.86);
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--text-soft);
+}
+
+.button-subtle:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 18px rgba(18, 25, 38, 0.06);
+}
+
+.button-plain {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.button-danger {
+  border-color: rgba(185, 74, 66, 0.14);
+  background: linear-gradient(180deg, #c8564b, #ad433b);
+  color: #fff;
+}
+
+.panel {
+  border: 1px solid rgba(226, 231, 234, 0.92);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--shadow-sm);
+}
+
+.library-toolbar {
+  padding: 16px;
+}
