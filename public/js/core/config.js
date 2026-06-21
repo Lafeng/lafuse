@@ -4,7 +4,7 @@
     COMPRESSION_PREF_KEY: 'lafuse:enableCompression',
     features: {
       uploadDedupe: false,
-      thumbnails: false,
+      thumbnails: true,
       videoThumbnails: false,
       totalCount: false,
       searchMode: 'prefix',

@@ -19,15 +19,15 @@ function parseInteger(value, fallback, { min, max } = {}) {
 
 export function buildFeatureConfig(env) {
   const lowCostMode = parseBoolean(env.LOW_COST_MODE, true);
-  const enableUploadDedupe = parseBoolean(env.ENABLE_UPLOAD_DEDUPE, !lowCostMode);
-  const enableThumbnails = parseBoolean(env.ENABLE_THUMBNAILS, !lowCostMode);
+  const enableUploadDedupe = parseBoolean(env.ENABLE_UPLOAD_DEDUPE, false);
+  const enableThumbnails = parseBoolean(env.ENABLE_THUMBNAILS, true);
 
   return {
     lowCostMode,
     enableUploadDedupe,
     enableThumbnails,
     enableVideoThumbnails: parseBoolean(env.ENABLE_VIDEO_THUMBNAILS, false),
-    enableTotalCount: parseBoolean(env.ENABLE_TOTAL_COUNT, !lowCostMode),
+    enableTotalCount: parseBoolean(env.ENABLE_TOTAL_COUNT, false),
     searchMode: env.SEARCH_MODE === 'contains' ? 'contains' : 'prefix',
     searchMinLength: parseInteger(env.SEARCH_MIN_LENGTH, 2, { min: 0, max: 20 }),
     hashMaxBytes: parseInteger(env.HASH_MAX_MB, lowCostMode ? 20 : 100, { min: 1, max: 512 }) * 1048576,

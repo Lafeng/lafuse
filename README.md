@@ -1,6 +1,6 @@
 # Lafuse
 
-Lafuse 是一个基于 Cloudflare Workers、R2、D1 和 KV 的轻量资源图库。当前默认采用低成本模式：媒体访问尽量绕过 Worker，图库查询避免额外计数，上传链路默认不做查重和缩略图。
+Lafuse 是一个基于 Cloudflare Workers、R2、D1 和 KV 的轻量资源图库。当前默认采用低成本模式：媒体访问尽量绕过 Worker，图库查询避免额外计数，上传链路默认不做查重，并为图片生成缩略图以降低图库浏览流量。
 
 ## 部署
 
@@ -14,13 +14,6 @@ npx wrangler dev
 
 ```bash
 npx wrangler d1 execute d1media --local --file scripts/schema.sql
-```
-
-已有数据库升级：
-
-```bash
-npx wrangler d1 migrations apply d1media --local
-npx wrangler d1 migrations apply d1media --env production
 ```
 
 生产发布：
@@ -42,11 +35,11 @@ npx wrangler deploy --env production
 | `MEDIA_PUBLIC_ORIGIN` | 生产低成本模式必填 | - | R2 公开域名或自定义域名，用于让媒体文件绕过 Worker |
 | `LOW_COST_MODE` | 否 | `1` | 开启低成本默认策略 |
 | `MAX_SIZE_MB` | 否 | `10` | 单文件上传大小限制 |
-| `ENABLE_UPLOAD_DEDUPE` | 否 | 低成本 `0` | 上传前 SHA-256 查重，会增加 D1 读请求 |
+| `ENABLE_UPLOAD_DEDUPE` | 否 | `0` | 上传前 SHA-256 查重，会增加 D1 读请求 |
 | `HASH_MAX_MB` | 否 | 低成本 `20` | 启用查重时的最大 hash 文件大小 |
-| `ENABLE_THUMBNAILS` | 否 | 低成本 `0` | 上传时生成缩略图，会增加 R2 写入和存储 |
+| `ENABLE_THUMBNAILS` | 否 | `1` | 上传时生成图片缩略图，会增加 R2 写入和少量存储，但降低图库浏览时的原图读取流量 |
 | `ENABLE_VIDEO_THUMBNAILS` | 否 | `0` | 视频缩略图，默认关闭 |
-| `ENABLE_TOTAL_COUNT` | 否 | 低成本 `0` | 图库读取总数，会增加一次 D1 查询 |
+| `ENABLE_TOTAL_COUNT` | 否 | `0` | 图库读取总数，会增加一次 D1 查询 |
 | `SEARCH_MODE` | 否 | `prefix` | `prefix` 使用索引前缀搜索；`contains` 支持包含搜索但更贵 |
 | `SEARCH_MIN_LENGTH` | 否 | `2` | 触发搜索的最小字符数 |
 | `ALLOW_WORKER_MEDIA_PROXY` | 否 | 本地自动开启 | 生产强制允许 `/i/*`、`/t/*` 走 Worker 代理，仅调试建议使用 |
@@ -59,11 +52,11 @@ npx wrangler deploy --env production
 - 低成本模式下 `/i/*`、`/t/*` 的 Worker 代理在生产默认关闭，避免错误配置导致每次看图都计 Worker 请求。
 - 图库使用游标分页，避免 `OFFSET`。
 - 默认不读取总数，列表接口只返回当前页和下一页游标。
-- 默认不生成缩略图，图库图片直接使用原图 URL 预览。
+- 默认生成图片缩略图：上传多一次 R2 写入和少量存储，图库浏览优先读取 `t/{id}.jpg`，避免列表页直接拉原图。
 - 默认不做上传前查重，避免每个文件额外一次 `/api.exists` 和 D1 查询。
 - 搜索默认使用 `original_name_lc` 前缀范围查询，避免 `LIKE '%keyword%'` 扫描。
 - 上传者筛选来源改为 `users` 表，不再从 `media` 表 `DISTINCT username`。
-- schema 变更通过 `migrations/` 执行，不在请求路径里做 `PRAGMA` 和 `CREATE INDEX`。
+- schema 使用 `schema.sql` 初始化，不在请求路径里做 `PRAGMA` 和 `CREATE INDEX`。
 
 ## 账号
 
@@ -73,12 +66,21 @@ npx wrangler deploy --env production
 sha256(AUTH_SALT + ":" + password)
 ```
 
-示例中的 hash 请用 `gen_user.sh` 按当前 `AUTH_SALT` 重新生成，不要提交真实用户 hash：
+新增用户时，用 `scripts/gen_user.sh` 按当前 `AUTH_SALT` 生成 SQL，不要提交真实用户 hash：
 
 ```sql
 INSERT INTO users (username, password_hash, role)
 VALUES ('admin', '<sha256-auth-salt-password>', 'admin');
 ```
+
+重置已有用户密码：
+
+```bash
+./scripts/reset_user_password.sh --username admin
+./scripts/reset_user_password.sh --env production --username admin --execute
+```
+
+脚本会隐藏读取 `AUTH_SALT` 和新密码。也可以通过环境变量传入 `AUTH_SALT`，但不要把真实 salt 写入仓库或命令行参数。
 
 ## License
 
