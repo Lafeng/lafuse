@@ -2,6 +2,10 @@
 
 Lafuse 是一个基于 Cloudflare Workers、R2、D1 和 KV 的轻量资源图库。当前默认采用低成本模式：媒体访问尽量绕过 Worker，图库查询避免额外计数，上传链路默认不做查重，并为图片生成缩略图以降低图库浏览流量。
 
+<p align="center">
+  <img src="docs/screenshots/showcase.webp" alt="Lafuse interface preview" width="900">
+</p>
+
 ## 部署
 
 本地开发：
