@@ -73,11 +73,11 @@ npx wrangler deploy --env production
 sha256(AUTH_SALT + ":" + password)
 ```
 
-示例：
+示例中的 hash 请用 `gen_user.sh` 按当前 `AUTH_SALT` 重新生成，不要提交真实用户 hash：
 
 ```sql
 INSERT INTO users (username, password_hash, role)
-VALUES ('admin', 'f39224225d494308156044585110c2679554e4469267c64de12699904a85c398', 'admin');
+VALUES ('admin', '<sha256-auth-salt-password>', 'admin');
 ```
 
 ## License
