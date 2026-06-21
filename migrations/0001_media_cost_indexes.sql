@@ -1,12 +1,17 @@
+ALTER TABLE media ADD COLUMN object_key TEXT;
+ALTER TABLE media ADD COLUMN thumb_key TEXT;
+ALTER TABLE media ADD COLUMN has_thumb INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE media ADD COLUMN sha256 TEXT;
+ALTER TABLE media ADD COLUMN original_name TEXT;
 ALTER TABLE media ADD COLUMN original_name_lc TEXT;
-
-UPDATE media
-SET original_name_lc = LOWER(COALESCE(original_name, id || '.' || ext))
-WHERE original_name_lc IS NULL;
 
 UPDATE media
 SET original_name = id || '.' || ext
 WHERE original_name IS NULL;
+
+UPDATE media
+SET original_name_lc = LOWER(original_name)
+WHERE original_name_lc IS NULL;
 
 UPDATE media
 SET object_key = 'i/' || id || '.' || ext
