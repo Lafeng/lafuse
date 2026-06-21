@@ -16,9 +16,11 @@
   position: relative;
   z-index: 1;
   display: grid;
+  grid-template-rows: auto minmax(150px, 0.8fr) minmax(112px, 1fr) auto auto;
   width: min(560px, 100vw);
-  max-height: 100vh;
-  overflow: auto;
+  height: 100vh;
+  max-height: 100svh;
+  overflow: hidden;
   gap: 13px;
   border-left: 1px solid rgba(226, 231, 234, 0.92);
   background: #fff;
@@ -61,7 +63,8 @@
 .drawer-preview {
   position: relative;
   display: grid;
-  height: clamp(270px, 48vh, 520px);
+  min-height: 0;
+  height: auto;
   place-items: center;
   overflow: hidden;
   border: 1px solid rgba(226, 231, 234, 0.92);
@@ -90,11 +93,14 @@
   z-index: 1;
   display: grid;
   gap: 0;
+  min-height: 0;
   margin: 0;
   border: 1px solid rgba(226, 231, 234, 0.92);
   border-radius: var(--radius);
   background: #fff;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .detail-list div {
@@ -140,5 +146,27 @@
 .drawer-actions {
   position: relative;
   z-index: 1;
+  flex-shrink: 0;
   background: #fff;
+}
+
+.drawer-actions {
+  align-self: end;
+}
+
+@media (max-height: 720px) {
+  .drawer-panel {
+    grid-template-rows: auto minmax(108px, 0.62fr) minmax(96px, 1fr) auto auto;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .detail-list div {
+    min-height: 34px;
+  }
+
+  .detail-list dt,
+  .detail-list dd {
+    padding: 7px 10px;
+  }
 }

@@ -182,9 +182,9 @@
 
         <section class="panel library-toolbar">
           <div class="library-stats">
-            <span>当前页 <strong x-text="adminMedia.length"></strong></span>
-            <span>总计 <strong x-text="adminTotalLabel"></strong></span>
-            <span>已选 <strong x-text="adminSelectedIds.size"></strong></span>
+            <span>当前页 <strong x-text="adminMedia.length"></strong> 个资源</span>
+            <span x-show="adminTotalCount != null" x-cloak>共 <strong x-text="adminTotalLabel"></strong> 个</span>
+            <span>已选 <strong x-text="adminSelectedIds.size"></strong> 个</span>
           </div>
           <div class="filters">
             <label class="search-field">

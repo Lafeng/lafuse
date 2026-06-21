@@ -39,6 +39,8 @@
 .filters input,
 .filters select,
 .url-field input {
+  appearance: none;
+  -webkit-appearance: none;
   height: 36px;
   min-width: 148px;
   border: 1px solid rgba(226, 231, 234, 0.92);
@@ -49,7 +51,13 @@
 }
 
 .search-field input {
+  border-radius: var(--radius);
   width: min(34vw, 300px);
+}
+
+.search-field input::-webkit-search-decoration,
+.search-field input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
 }
 
 .gallery {
