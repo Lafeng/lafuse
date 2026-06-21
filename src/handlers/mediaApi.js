@@ -76,7 +76,6 @@ function getMediaResponse(row, origin) {
   const hasThumb = Boolean(row.has_thumb);
   return {
     id: row.id,
-    extension: row.ext,
     originalName: row.original_name || `${row.id}.${row.ext}`,
     url: buildMediaUrl(origin, row.object_key),
     thumbUrl: hasThumb ? buildMediaUrl(origin, row.thumb_key) : null,
@@ -115,7 +114,6 @@ function getExistingUploadPayload(request, config, existing) {
   const origin = getMediaOrigin(request, config);
   return {
     id: existing.id,
-    extension: existing.ext,
     originalName: existing.original_name || `${existing.id}.${existing.ext}`,
     data: buildMediaUrl(origin, existing.object_key),
     thumbUrl: existing.has_thumb ? buildMediaUrl(origin, existing.thumb_key) : null,
@@ -218,7 +216,6 @@ export async function apiUpload({ request, config, user }) {
 
     return json({
       id,
-      extension: ext,
       originalName,
       data: buildMediaUrl(getMediaOrigin(request, config), objectKey),
       thumbUrl: thumbKey ? buildMediaUrl(getMediaOrigin(request, config), thumbKey) : null,
@@ -247,7 +244,6 @@ export async function apiExists({ request, config, url }) {
     exists: true,
     media: {
       id: row.id,
-      extension: row.ext,
       originalName: row.original_name || `${row.id}.${row.ext}`,
       url: buildMediaUrl(origin, row.object_key),
       thumbUrl: hasThumb ? buildMediaUrl(origin, row.thumb_key) : null,

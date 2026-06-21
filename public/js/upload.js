@@ -266,7 +266,7 @@ document.addEventListener('alpine:init', () => {
           item.progress = 100;
           item.url = existing.url;
           item.mediaId = existing.id;
-          item.extension = existing.extension || getExtension(existing.url);
+          item.extension = getExtension(existing.url);
           item.processedSize = processedFile.size;
           this.toast('已复用已有资源', 'success');
           return;
@@ -295,7 +295,7 @@ document.addEventListener('alpine:init', () => {
       item.progress = 100;
       item.url = responseData.data;
       item.mediaId = responseData.id;
-      item.extension = responseData.extension || getExtension(responseData.data);
+      item.extension = getExtension(responseData.data);
       item.processedSize = processedFile.size;
       if (responseData.reused) {
         this.toast('已复用已有资源', 'success');
@@ -330,7 +330,6 @@ document.addEventListener('alpine:init', () => {
       const item = {
         id: responseData.id,
         url: responseData.data,
-        extension: responseData.extension || getExtension(responseData.data),
         originalName: responseData.originalName || responseData.name || responseData.id,
         hasThumb: Boolean(responseData.hasThumb),
         thumbUrl: responseData.thumbUrl ?? null,

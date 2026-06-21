@@ -14,7 +14,7 @@ SET original_name_lc = LOWER(original_name)
 WHERE original_name_lc IS NULL;
 
 UPDATE media
-SET object_key = id
+SET object_key = 'i/' || id || '.' || ext
 WHERE object_key IS NULL;
 
 UPDATE media

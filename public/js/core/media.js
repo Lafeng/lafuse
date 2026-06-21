@@ -43,7 +43,7 @@
 
   const getMediaMeta = (item) => {
     const { formatBytes, formatTime } = window.LafuseFormatters;
-    const extension = item.extension || getExtension(item.url);
+    const extension = getExtension(item.url);
     const stem = item.url.split('/').pop() ?? '';
     const dot = stem.lastIndexOf('.');
     const id = item.id || (dot > 0 ? stem.substring(0, dot) : stem);
