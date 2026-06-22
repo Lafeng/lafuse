@@ -9,10 +9,6 @@
     flex-direction: column;
   }
 
-  .token-grid {
-    grid-template-columns: 1fr;
-  }
-
   .token-table-head,
   .token-row {
     grid-template-columns: minmax(180px, 1fr) minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(140px, 0.8fr) 86px;

@@ -14,7 +14,7 @@
     class="app-shell"
     x-data="uploadApp()"
     x-init="init()"
-    @keydown.escape.window="adminActiveAsset = null"
+    @keydown.escape.window="adminActiveAsset = null; tokenCloseDrawer()"
     @dragenter.window.prevent="dragActive = true"
     @dragover.window.prevent="dragActive = true"
     @dragleave.window="handleDragLeave($event)"
@@ -327,52 +327,10 @@
             <h1>Token 管理</h1>
           </div>
           <div class="workspace-actions">
+            <button class="button button-primary" type="button" @click="tokenOpenCreate">创建 Token</button>
             <button class="button button-subtle" type="button" @click="tokenLoadList(true)" :disabled="tokenLoading">刷新</button>
           </div>
         </div>
-
-        <section class="token-grid">
-          <form class="panel token-create" @submit.prevent="tokenCreate">
-            <div>
-              <p class="eyebrow">Create</p>
-              <h2>创建上传 Token</h2>
-            </div>
-            <label>
-              <span>名称</span>
-              <input type="text" x-model.trim="tokenForm.name" maxlength="48" placeholder="PicGo">
-            </label>
-            <label>
-              <span>记录为上传者</span>
-              <input type="text" x-model.trim="tokenForm.username" maxlength="80" :placeholder="user?.username || 'admin'">
-            </label>
-            <label>
-              <span>过期时间</span>
-              <select x-model="tokenForm.expiresPreset">
-                <option value="never">永不过期</option>
-                <option value="30d">30 天</option>
-                <option value="90d">90 天</option>
-                <option value="365d">365 天</option>
-              </select>
-            </label>
-            <button class="button button-primary" type="submit" :disabled="tokenCreating">创建 Token</button>
-          </form>
-
-          <section class="panel token-secret" x-show="tokenPlaintext" x-cloak>
-            <div>
-              <p class="eyebrow">Plaintext</p>
-              <h2>只显示一次</h2>
-            </div>
-            <p>请立即放入 PicGo 配置。本系统只保存 HMAC 后的 hash，关闭后无法再次查看明文。</p>
-            <label class="url-field">
-              <span>Token</span>
-              <input type="text" readonly :value="tokenPlaintext">
-            </label>
-            <div class="token-actions">
-              <button class="button button-primary" type="button" @click="copyText(tokenPlaintext, '已复制 Token')">复制 Token</button>
-              <button class="button button-plain" type="button" @click="tokenPlaintext = ''">关闭</button>
-            </div>
-          </section>
-        </section>
 
         <section class="panel token-list">
           <div class="token-list-head">
@@ -407,6 +365,61 @@
             </template>
           </div>
         </section>
+
+        <template x-if="tokenDrawerOpen">
+          <aside class="token-drawer">
+            <div class="drawer-backdrop" @click="tokenCloseDrawer"></div>
+            <section class="drawer-panel token-drawer-panel" x-transition>
+              <div class="drawer-head">
+                <div>
+                  <p class="eyebrow" x-text="tokenPlaintext ? 'Plaintext' : 'Create'"></p>
+                  <h2 x-text="tokenPlaintext ? '只显示一次' : '创建上传 Token'"></h2>
+                </div>
+                <button class="icon-close" type="button" aria-label="关闭" @click="tokenCloseDrawer">x</button>
+              </div>
+
+              <template x-if="!tokenPlaintext">
+                <form class="token-create-form" @submit.prevent="tokenCreate">
+                  <label>
+                    <span>名称</span>
+                    <input type="text" x-model.trim="tokenForm.name" maxlength="48" placeholder="PicGo">
+                  </label>
+                  <label>
+                    <span>记录为上传者</span>
+                    <input type="text" x-model.trim="tokenForm.username" maxlength="80" :placeholder="user?.username || 'admin'">
+                  </label>
+                  <label>
+                    <span>过期时间</span>
+                    <select x-model="tokenForm.expiresPreset">
+                      <option value="never">永不过期</option>
+                      <option value="30d">30 天</option>
+                      <option value="90d">90 天</option>
+                      <option value="365d">365 天</option>
+                    </select>
+                  </label>
+                  <div class="drawer-actions">
+                    <button class="button button-primary" type="submit" :disabled="tokenCreating">创建 Token</button>
+                    <button class="button button-subtle" type="button" @click="tokenCloseDrawer">取消</button>
+                  </div>
+                </form>
+              </template>
+
+              <template x-if="tokenPlaintext">
+                <section class="token-secret-view">
+                  <p>请立即放入 PicGo 配置。本系统只保存 HMAC 后的 hash，关闭后无法再次查看明文。</p>
+                  <label class="url-field">
+                    <span>Token</span>
+                    <input type="text" readonly :value="tokenPlaintext">
+                  </label>
+                  <div class="drawer-actions">
+                    <button class="button button-primary" type="button" @click="copyText(tokenPlaintext, '已复制 Token')">复制 Token</button>
+                    <button class="button button-subtle" type="button" @click="tokenCloseDrawer">完成</button>
+                  </div>
+                </section>
+              </template>
+            </section>
+          </aside>
+        </template>
       </section>
     </main>
 

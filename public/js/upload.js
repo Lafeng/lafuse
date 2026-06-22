@@ -62,6 +62,7 @@ document.addEventListener('alpine:init', () => {
     tokenLoading: false,
     tokenCreating: false,
     tokenPlaintext: '',
+    tokenDrawerOpen: false,
     tokenLoaded: false,
     tokenForm: {
       name: 'PicGo',
@@ -629,6 +630,21 @@ document.addEventListener('alpine:init', () => {
       const preset = this.tokenForm.expiresPreset;
       const days = { '30d': 30, '90d': 90, '365d': 365 }[preset];
       return days ? Math.floor(Date.now() / 1000) + days * 86400 : null;
+    },
+
+    tokenOpenCreate() {
+      this.tokenPlaintext = '';
+      this.tokenForm = {
+        name: 'PicGo',
+        username: this.user?.username || '',
+        expiresPreset: 'never',
+      };
+      this.tokenDrawerOpen = true;
+    },
+
+    tokenCloseDrawer() {
+      this.tokenDrawerOpen = false;
+      this.tokenPlaintext = '';
     },
 
     async tokenLoadList(force = false) {
