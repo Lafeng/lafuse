@@ -1,7 +1,6 @@
 import {
   findMediaBySha256,
   findMediaForDelete,
-  insertMedia,
   listMedia,
   listUploaders,
   deleteMediaRows,
@@ -10,16 +9,11 @@ import {
 import { json } from '../http.js';
 import {
   buildMediaUrl,
-  buildObjectKey,
-  buildThumbKey,
   deleteMediaObjects,
   getMediaOrigin,
-  putMediaObject,
 } from '../storage/mediaStorage.js';
-import {
-  extractTimestampFromId,
-  generateMediaId,
-} from '../media.js';
+import { extractTimestampFromId } from '../media.js';
+import { uploadMedia } from '../services/mediaUploadService.js';
 
 const MEDIA_LIST_CACHE_TTL = 10_000;
 const MEDIA_LIST_CACHE_MAX = 100;
@@ -42,7 +36,7 @@ function getMediaListCacheKey(request, config, params) {
   ].join(':');
 }
 
-function clearMediaListCache() {
+export function clearMediaListCache() {
   mediaListCache.clear();
   uploadersCache = null;
 }
@@ -87,51 +81,6 @@ function getMediaResponse(row, origin) {
   };
 }
 
-function sanitizeOriginalName(name) {
-  const clean = String(name || 'unnamed')
-    .split(/[\\/]/)
-    .pop()
-    .replace(/[\u0000-\u001f\u007f]/g, '')
-    .trim();
-  return (clean || 'unnamed').slice(0, 180);
-}
-
-function getExtensionFromName(name) {
-  const dot = name.lastIndexOf('.');
-  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : 'bin';
-  return /^[a-z0-9]{1,12}$/.test(ext) ? ext : 'bin';
-}
-
-function shouldAcceptSha256(value, config) {
-  return config.features.enableUploadDedupe && SHA256_RE.test(value || '');
-}
-
-function isReusableShaMatch(row, file) {
-  return row && Number(row.size) === file.size;
-}
-
-function getExistingUploadPayload(request, config, existing) {
-  const origin = getMediaOrigin(request, config);
-  return {
-    id: existing.id,
-    originalName: existing.original_name || `${existing.id}.${existing.ext}`,
-    data: buildMediaUrl(origin, existing.object_key),
-    thumbUrl: existing.has_thumb ? buildMediaUrl(origin, existing.thumb_key) : null,
-    hasThumb: Boolean(existing.has_thumb),
-    reused: true,
-  };
-}
-
-function shouldStoreThumb(thumb, config) {
-  return Boolean(
-    config.features.enableThumbnails
-    && thumb
-    && typeof thumb === 'object'
-    && typeof thumb.stream === 'function'
-    && thumb.size > 0
-  );
-}
-
 export async function apiMedia({ request, config, url }) {
   const params = getListParams(url, config.features);
   const cacheKey = getMediaListCacheKey(request, config, params);
@@ -157,74 +106,13 @@ export async function apiUpload({ request, config, user }) {
     const formData = await request.formData();
     const file = formData.get('file');
     const rawSha256 = formData.get('sha256') || '';
-    const sha256 = shouldAcceptSha256(rawSha256, config) ? rawSha256.toLowerCase() : null;
     const thumb = formData.get('thumb');
-    if (!file) throw new Error('缺少文件');
-    if (file.size > config.maxSize) {
-      return json({ error: `文件大小超过${config.maxSize / 1048576}MB限制` }, 413);
-    }
-
-    if (sha256) {
-      const existing = await findMediaBySha256(config.database, sha256);
-      if (isReusableShaMatch(existing, file)) {
-        return json(getExistingUploadPayload(request, config, existing));
-      }
-    }
-
-    const id = generateMediaId();
-    const originalName = sanitizeOriginalName(file.name);
-    const ext = getExtensionFromName(originalName);
-    const objectKey = buildObjectKey(id, ext);
-    const hasThumb = shouldStoreThumb(thumb, config);
-    const thumbKey = hasThumb ? buildThumbKey(id) : null;
-
-    const putOps = [
-      putMediaObject(config, objectKey, file.stream(), file.type),
-    ];
-    if (hasThumb) {
-      putOps.push(putMediaObject(config, thumbKey, thumb.stream(), 'image/jpeg'));
-    }
-    await Promise.all(putOps);
-
-    try {
-      await insertMedia(config.database, {
-        id,
-        ext,
-        size: file.size,
-        userId: user.userId,
-        username: user.username,
-        originalName,
-        objectKey,
-        thumbKey,
-        hasThumb,
-        sha256,
-      });
-      if (config.features.enableTotalCount) {
-        await updateMediaCount(config.database, 1);
-      }
-    } catch (error) {
-      await deleteMediaObjects(config, [objectKey, thumbKey]);
-      if (sha256) {
-        const existing = await findMediaBySha256(config.database, sha256);
-        if (isReusableShaMatch(existing, file)) {
-          return json(getExistingUploadPayload(request, config, existing));
-        }
-      }
-      throw error;
-    }
+    const payload = await uploadMedia({ request, config, user, file, thumb, rawSha256 });
     clearMediaListCache();
-
-    return json({
-      id,
-      originalName,
-      data: buildMediaUrl(getMediaOrigin(request, config), objectKey),
-      thumbUrl: thumbKey ? buildMediaUrl(getMediaOrigin(request, config), thumbKey) : null,
-      hasThumb,
-      reused: false,
-    });
+    return json(payload);
   } catch (e) {
     console.error('R2 上传错误:', e);
-    return json({ error: e.message }, 500);
+    return json({ error: e.message }, e.status || 500);
   }
 }
 

@@ -12,6 +12,10 @@ import {
   apiUploaders,
 } from './handlers/mediaApi.js';
 import {
+  apiV1Ping,
+  apiV1Upload,
+} from './handlers/tokenUploadApi.js';
+import {
   serveIndex,
   serveLogin,
 } from './handlers/pages.js';
@@ -37,9 +41,12 @@ export const ROUTES = {
   'api.exists': { fn: apiExists, auth: 'user' },
   'api.upload': { fn: apiUpload, method: 'POST', auth: 'user' },
   'api.delete-media': { fn: apiDeleteMedia, method: 'POST', auth: 'admin' },
+  'api/v1/ping': { fn: apiV1Ping },
+  'api/v1/upload': { fn: apiV1Upload, method: 'POST' },
 };
 
 export function getRouteKey(pathname) {
+  if (pathname.startsWith('/api/v1/')) return pathname.slice(1);
   const seg1End = pathname.indexOf('/', 1);
   return seg1End > 0 ? pathname.substring(1, seg1End) : pathname.substring(1);
 }

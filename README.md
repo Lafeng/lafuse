@@ -27,6 +27,50 @@ npx wrangler secret put AUTH_SALT --env production
 npx wrangler deploy --env production
 ```
 
+## PicGo
+
+Lafuse 提供独立的 Token 上传接口给 PicGo 使用，不复用网页登录 Session：
+
+```http
+POST /api/v1/upload
+Authorization: Bearer <lafuse-api-token>
+```
+
+已有生产 D1 只需要初始化一次 Token 表：
+
+```bash
+npx wrangler d1 execute d1media --env production --remote --file scripts/init_api_tokens.sql
+```
+
+生成 PicGo Token：
+
+```bash
+./scripts/create_api_token.sh --name PicGo --username admin --user-id 1
+./scripts/create_api_token.sh --env production --name PicGo --username admin --user-id 1 --execute
+```
+
+脚本会隐藏读取 `AUTH_SALT`，只保存 HMAC 后的 Token hash 到 D1。明文 Token 只输出一次，写入 PicGo 后不要提交到仓库。
+
+安装或本地链接 `picgo-plugin-lafuse/` 上传器后，在 PicGo 配置中启用：
+
+```json
+{
+  "picBed": {
+    "uploader": "lafuse",
+    "current": "lafuse",
+    "lafuse": {
+      "endpoint": "https://lafuse.example.com",
+      "token": "lafuse_v1_xxxxxxxxxxxx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  "picgoPlugins": {
+    "picgo-plugin-lafuse": true
+  }
+}
+```
+
+接口写入路径和网页上传一致：一次 R2 原图写入、一次 D1 记录写入；不额外走 Worker 媒体代理。Token 校验在 Worker 内有短 TTL 内存缓存，连续上传多张图片时会减少重复 D1 读。
+
 ## 配置
 
 | 变量名 | 必填 | 默认值 | 说明 |

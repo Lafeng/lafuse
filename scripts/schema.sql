@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS media;
 DROP TABLE IF EXISTS stats;
+DROP TABLE IF EXISTS api_tokens;
 
 CREATE TABLE users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,3 +33,14 @@ CREATE TABLE stats (
   value INTEGER NOT NULL DEFAULT 0
 );
 INSERT INTO stats (key, value) VALUES ('media_count', 0);
+CREATE TABLE api_tokens (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  user_id INTEGER,
+  username TEXT,
+  scope TEXT NOT NULL DEFAULT 'upload',
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER,
+  revoked_at INTEGER
+);

@@ -1,0 +1,16 @@
+{
+  "name": "picgo-plugin-lafuse",
+  "version": "0.1.0",
+  "description": "PicGo uploader for Lafuse",
+  "main": "index.js",
+  "keywords": [
+    "picgo",
+    "picgo-plugin",
+    "lafuse",
+    "uploader"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "picgo": ">=1.8.0"
+  }
+}
