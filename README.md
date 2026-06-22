@@ -48,16 +48,7 @@ npx wrangler d1 execute d1media --env production --remote --file scripts/init_ap
 npx wrangler d1 execute d1media --env production --remote --file scripts/init_upload_source.sql
 ```
 
-生成 PicGo Token：
-
-```bash
-./scripts/create_api_token.sh --name PicGo --username admin --user-id 1
-./scripts/create_api_token.sh --env production --name PicGo --username admin --user-id 1 --execute
-```
-
-脚本会隐藏读取 `AUTH_SALT`，只保存 HMAC 后的 Token hash 到 D1。明文 Token 只输出一次，写入 PicGo 后不要提交到仓库。
-
-管理员也可以在 Web 后台的 `Token` 页面创建和撤销上传 Token。后台同样只保存 Token hash，明文 Token 只在创建成功后显示一次。系统不记录 `last_used_at`，避免每次 PicGo 上传额外写 D1。
+管理员在 Web 后台的 `Token` 页面创建和撤销上传 Token。Token 上传者固定为创建 Token 的当前登录用户，不允许从客户端自由填写，避免污染图库归属和上传者筛选。后台只保存 Token hash，明文 Token 只在创建成功后显示一次。系统不记录 `last_used_at`，避免每次 PicGo 上传额外写 D1。
 
 PicGo CLI 本地插件安装流程：
 

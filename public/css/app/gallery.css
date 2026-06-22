@@ -433,6 +433,12 @@
   padding: 0 10px;
 }
 
+.token-create-form input[readonly] {
+  background: rgba(248, 250, 251, 0.78);
+  color: var(--muted);
+  cursor: default;
+}
+
 .token-create-form .drawer-actions,
 .token-secret-view .drawer-actions {
   margin-top: 2px;

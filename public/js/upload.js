@@ -66,7 +66,6 @@ document.addEventListener('alpine:init', () => {
     tokenLoaded: false,
     tokenForm: {
       name: 'PicGo',
-      username: '',
       expiresPreset: 'never',
     },
 
@@ -186,7 +185,6 @@ document.addEventListener('alpine:init', () => {
       }
       if (view === 'tokens' && this.user?.role === 'admin') {
         this.view = 'tokens';
-        this.tokenForm.username ||= this.user.username || '';
         if (!this.tokenLoaded) await this.tokenLoadList();
         return;
       }
@@ -636,7 +634,6 @@ document.addEventListener('alpine:init', () => {
       this.tokenPlaintext = '';
       this.tokenForm = {
         name: 'PicGo',
-        username: this.user?.username || '',
         expiresPreset: 'never',
       };
       this.tokenDrawerOpen = true;
@@ -673,8 +670,6 @@ document.addEventListener('alpine:init', () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: this.tokenForm.name || 'PicGo',
-            username: this.tokenForm.username || this.user.username,
-            userId: this.user.userId,
             expiresAt: this.tokenExpiresAt(),
           }),
         });

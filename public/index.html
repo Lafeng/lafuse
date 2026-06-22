@@ -385,8 +385,8 @@
                     <input type="text" x-model.trim="tokenForm.name" maxlength="48" placeholder="PicGo">
                   </label>
                   <label>
-                    <span>记录为上传者</span>
-                    <input type="text" x-model.trim="tokenForm.username" maxlength="80" :placeholder="user?.username || 'admin'">
+                    <span>上传者</span>
+                    <input type="text" readonly :value="user?.username || '-'">
                   </label>
                   <label>
                     <span>过期时间</span>

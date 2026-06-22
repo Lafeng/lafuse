@@ -47,8 +47,6 @@ export async function apiCreateToken({ request, config, user }) {
   const name = cleanText(body.name, 'PicGo').slice(0, MAX_NAME_LENGTH);
   if (!name) return json({ error: '缺少 Token 名称' }, 400);
 
-  const username = cleanText(body.username, user.username).slice(0, 80) || user.username;
-  const userId = Number.isFinite(Number(body.userId)) ? Number(body.userId) : user.userId;
   const expiresAt = parseExpiresAt(body.expiresAt);
   const now = Math.floor(Date.now() / 1000);
   const plain = createPlainApiToken();
@@ -58,8 +56,8 @@ export async function apiCreateToken({ request, config, user }) {
     id: plain.id,
     name,
     tokenHash,
-    userId,
-    username,
+    userId: user.userId,
+    username: user.username,
     scope: 'upload',
     createdAt: now,
     expiresAt,
@@ -70,8 +68,8 @@ export async function apiCreateToken({ request, config, user }) {
     item: getTokenResponse({
       id: plain.id,
       name,
-      user_id: userId,
-      username,
+      user_id: user.userId,
+      username: user.username,
       scope: 'upload',
       created_at: now,
       expires_at: expiresAt,
