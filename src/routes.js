@@ -16,6 +16,11 @@ import {
   apiV1Upload,
 } from './handlers/tokenUploadApi.js';
 import {
+  apiCreateToken,
+  apiRevokeToken,
+  apiTokens,
+} from './handlers/tokenAdminApi.js';
+import {
   serveIndex,
   serveLogin,
 } from './handlers/pages.js';
@@ -41,6 +46,9 @@ export const ROUTES = {
   'api.exists': { fn: apiExists, auth: 'user' },
   'api.upload': { fn: apiUpload, method: 'POST', auth: 'user' },
   'api.delete-media': { fn: apiDeleteMedia, method: 'POST', auth: 'admin' },
+  'api.tokens': { fn: apiTokens, auth: 'admin' },
+  'api.create-token': { fn: apiCreateToken, method: 'POST', auth: 'admin' },
+  'api.revoke-token': { fn: apiRevokeToken, method: 'POST', auth: 'admin' },
   'api/v1/ping': { fn: apiV1Ping },
   'api/v1/upload': { fn: apiV1Upload, method: 'POST' },
 };

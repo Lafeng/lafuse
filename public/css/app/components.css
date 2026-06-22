@@ -53,6 +53,10 @@
   color: #fff;
 }
 
+.button-danger:hover:not(:disabled) {
+  background: linear-gradient(180deg, #b94a42, #9d3832);
+}
+
 .panel {
   border: 1px solid rgba(226, 231, 234, 0.92);
   border-radius: var(--radius);

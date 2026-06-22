@@ -5,12 +5,32 @@ const TOKEN_CACHE_TTL_MS = 60_000;
 const TOKEN_CACHE_MAX = 100;
 const tokenCache = new Map();
 const tokenKeyCache = new Map();
+const TOKEN_SECRET_BYTES = 33;
+
+function getRandomBytes(length) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
 
 function base64UrlEncode(value) {
   const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
   let binary = '';
   bytes.forEach(byte => { binary += String.fromCharCode(byte); });
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function hexEncode(bytes) {
+  return [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export function createPlainApiToken() {
+  const id = hexEncode(getRandomBytes(6));
+  const secret = base64UrlEncode(getRandomBytes(TOKEN_SECRET_BYTES));
+  return {
+    id,
+    token: `lafuse_v1_${id}_${secret}`,
+  };
 }
 
 export async function hashApiToken(token, salt) {
@@ -74,6 +94,12 @@ function cacheTokenUser(id, tokenHash, row, user, nowMs) {
     expiresAt: row.expires_at,
     cacheExpiresAt: nowMs + TOKEN_CACHE_TTL_MS,
   });
+}
+
+export function invalidateApiTokenCache(id) {
+  for (const key of tokenCache.keys()) {
+    if (key.startsWith(`${id}:`)) tokenCache.delete(key);
+  }
 }
 
 export async function getApiTokenUser(request, config) {

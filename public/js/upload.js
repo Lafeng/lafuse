@@ -58,6 +58,17 @@ document.addEventListener('alpine:init', () => {
     adminUploaderList: [],
     adminFilterTimer: null,
 
+    tokens: [],
+    tokenLoading: false,
+    tokenCreating: false,
+    tokenPlaintext: '',
+    tokenLoaded: false,
+    tokenForm: {
+      name: 'PicGo',
+      username: '',
+      expiresPreset: 'never',
+    },
+
     get uploadStats() {
       const activeStates = new Set(['queued', 'compressing', 'thumbnailing', 'hashing', 'uploading']);
       return this.uploads.reduce((stats, item) => {
@@ -104,6 +115,12 @@ document.addEventListener('alpine:init', () => {
       return list.sort(sorters[this.adminSort] ?? sorters.newest);
     },
 
+    get tokenSummary() {
+      const now = Date.now();
+      const active = this.tokens.filter(token => !token.revokedAt && (!token.expiresAt || token.expiresAt > now)).length;
+      return `${active} 个有效 / ${this.tokens.length} 个总计`;
+    },
+
     async init() {
       this.enableCompression = this.readCompressionPreference();
       this.$watch('enableCompression', value => this.writeCompressionPreference(value));
@@ -139,8 +156,8 @@ document.addEventListener('alpine:init', () => {
       }
       this.user = data.user;
       const hash = location.hash.slice(1);
-      if (hash === 'admin' && this.user.role === 'admin') {
-        await this.setView('admin');
+      if (['admin', 'tokens'].includes(hash) && this.user.role === 'admin') {
+        await this.setView(hash);
       }
     },
 
@@ -150,7 +167,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     async setViewWithHistory(view) {
-      const next = view === 'admin' && this.user?.role === 'admin' ? 'admin' : 'upload';
+      const next = ['admin', 'tokens'].includes(view) && this.user?.role === 'admin' ? view : 'upload';
       history.pushState({ view: next }, '', `#${next}`);
       await this.setView(next);
     },
@@ -164,6 +181,12 @@ document.addEventListener('alpine:init', () => {
         this.view = 'admin';
         if (!this.adminUploaderList.length) await this.adminLoadUploaders();
         if (!this.adminMedia.length) await this.adminLoadMedia();
+        return;
+      }
+      if (view === 'tokens' && this.user?.role === 'admin') {
+        this.view = 'tokens';
+        this.tokenForm.username ||= this.user.username || '';
+        if (!this.tokenLoaded) await this.tokenLoadList();
         return;
       }
       this.view = 'upload';
@@ -600,6 +623,98 @@ document.addEventListener('alpine:init', () => {
       this.adminCurrentPage += 1;
       this.adminLoadedCursor = null;
       await this.adminLoadMedia();
+    },
+
+    tokenExpiresAt() {
+      const preset = this.tokenForm.expiresPreset;
+      const days = { '30d': 30, '90d': 90, '365d': 365 }[preset];
+      return days ? Math.floor(Date.now() / 1000) + days * 86400 : null;
+    },
+
+    async tokenLoadList(force = false) {
+      if (this.tokenLoading) return;
+      if (this.tokenLoaded && !force) return;
+      this.tokenLoading = true;
+      try {
+        const response = await fetch('/api.tokens');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error ?? 'Token 加载失败');
+        this.tokens = data.tokens ?? [];
+        this.tokenLoaded = true;
+      } catch (error) {
+        this.toast(error?.message ?? 'Token 加载失败', 'error');
+      } finally {
+        this.tokenLoading = false;
+      }
+    },
+
+    async tokenCreate() {
+      if (this.tokenCreating) return;
+      this.tokenCreating = true;
+      try {
+        const response = await fetch('/api.create-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: this.tokenForm.name || 'PicGo',
+            username: this.tokenForm.username || this.user.username,
+            userId: this.user.userId,
+            expiresAt: this.tokenExpiresAt(),
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error ?? 'Token 创建失败');
+        this.tokenPlaintext = data.token;
+        this.tokens = [data.item, ...this.tokens];
+        this.tokenLoaded = true;
+        this.toast('Token 已创建', 'success');
+      } catch (error) {
+        this.toast(error?.message ?? 'Token 创建失败', 'error');
+      } finally {
+        this.tokenCreating = false;
+      }
+    },
+
+    async tokenRevoke(token) {
+      if (!token || token.revokedAt) return;
+      if (!confirm(`确定撤销 Token「${token.name}」吗？撤销后 PicGo 将无法继续使用它上传。`)) return;
+      try {
+        const response = await fetch('/api.revoke-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: token.id }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.error ?? 'Token 撤销失败');
+        const revokedAt = Date.now();
+        this.tokens = this.tokens.map(item => (item.id === token.id ? { ...item, revokedAt } : item));
+        this.toast('Token 已撤销', 'success');
+      } catch (error) {
+        this.toast(error?.message ?? 'Token 撤销失败', 'error');
+      }
+    },
+
+    tokenStatusLabel(token) {
+      if (token.revokedAt) return '已撤销';
+      if (token.expiresAt && token.expiresAt <= Date.now()) return '已过期';
+      return token.expiresAt ? `有效至 ${this.formatTokenTime(token.expiresAt)}` : '有效';
+    },
+
+    tokenStatusClass(token) {
+      if (token.revokedAt || (token.expiresAt && token.expiresAt <= Date.now())) return 'inactive';
+      return 'active';
+    },
+
+    formatTokenTime(value) {
+      if (!value) return '-';
+      return new Date(value).toLocaleString('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
     },
   }));
 });

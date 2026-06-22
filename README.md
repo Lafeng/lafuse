@@ -57,6 +57,8 @@ npx wrangler d1 execute d1media --env production --remote --file scripts/init_up
 
 脚本会隐藏读取 `AUTH_SALT`，只保存 HMAC 后的 Token hash 到 D1。明文 Token 只输出一次，写入 PicGo 后不要提交到仓库。
 
+管理员也可以在 Web 后台的 `Token` 页面创建和撤销上传 Token。后台同样只保存 Token hash，明文 Token 只在创建成功后显示一次。系统不记录 `last_used_at`，避免每次 PicGo 上传额外写 D1。
+
 PicGo CLI 本地插件安装流程：
 
 ```bash
