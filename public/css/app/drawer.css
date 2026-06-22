@@ -16,7 +16,7 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-rows: auto minmax(150px, 0.8fr) minmax(112px, 1fr) auto auto;
+  grid-template-rows: auto minmax(96px, 1fr) auto auto auto;
   width: min(560px, 100vw);
   height: 100vh;
   max-height: 100svh;
@@ -93,20 +93,17 @@
   z-index: 1;
   display: grid;
   gap: 0;
-  min-height: 0;
   margin: 0;
   border: 1px solid rgba(226, 231, 234, 0.92);
   border-radius: var(--radius);
   background: #fff;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  overflow: hidden;
 }
 
 .detail-list div {
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr);
-  min-height: 40px;
+  height: 40px;
   align-items: center;
   border-bottom: 1px solid rgba(226, 231, 234, 0.92);
 }
@@ -156,17 +153,8 @@
 
 @media (max-height: 720px) {
   .drawer-panel {
-    grid-template-rows: auto minmax(108px, 0.62fr) minmax(96px, 1fr) auto auto;
+    grid-template-rows: auto minmax(72px, 1fr) auto auto auto;
     gap: 10px;
     padding: 14px;
-  }
-
-  .detail-list div {
-    min-height: 34px;
-  }
-
-  .detail-list dt,
-  .detail-list dd {
-    padding: 7px 10px;
   }
 }
