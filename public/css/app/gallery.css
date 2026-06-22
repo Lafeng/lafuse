@@ -394,22 +394,29 @@
   color: var(--muted);
 }
 
-.token-drawer-panel {
+.drawer-panel.token-drawer-panel {
   display: grid;
   grid-template-rows: auto auto;
+  grid-auto-rows: max-content;
   align-content: start;
-  gap: 20px;
+  width: min(440px, 100vw);
+  gap: 18px;
+  overflow-y: auto;
 }
 
 .token-create-form,
 .token-secret-view {
   display: grid;
-  gap: 14px;
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 16px;
 }
 
 .token-create-form label {
   display: grid;
+  min-height: 60px;
   gap: 6px;
+  align-content: start;
   color: var(--muted);
   font-size: 11px;
   font-weight: 500;
@@ -424,6 +431,11 @@
   background: rgba(255, 255, 255, 0.86);
   color: var(--text-soft);
   padding: 0 10px;
+}
+
+.token-create-form .drawer-actions,
+.token-secret-view .drawer-actions {
+  margin-top: 2px;
 }
 
 .token-secret-view p {
