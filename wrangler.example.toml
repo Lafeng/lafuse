@@ -11,7 +11,6 @@ binding = "ASSETS"
 # dev 环境变量配置
 [vars]
 DOMAIN="localhost:8787"
-AUTH_SALT="xxxxxxxxxxxx"
 # SESSION_COOKIE_NAME
 # SESSION_TTL_DAYS
 # MAX_SIZE_MB
