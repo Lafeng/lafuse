@@ -34,6 +34,7 @@ export async function apiV1Upload({ request, config }) {
       file,
       thumb: formData.get('thumb'),
       rawSha256,
+      uploadSource: 'api',
     });
     clearMediaListCache();
 
@@ -46,6 +47,7 @@ export async function apiV1Upload({ request, config }) {
         url: payload.data,
         thumbUrl: payload.thumbUrl,
         hasThumb: payload.hasThumb,
+        uploadSource: payload.uploadSource,
         reused: payload.reused,
       },
     });

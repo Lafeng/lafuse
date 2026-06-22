@@ -337,6 +337,7 @@ document.addEventListener('alpine:init', () => {
         size,
         userId: this.user.userId,
         username: this.user.username,
+        uploadSource: responseData.uploadSource || 'web',
       };
       this.adminMedia = [{ ...item, ...getMediaMeta(item) }, ...this.adminMedia];
       this.adminLoadedCursor = this.adminCursorStack[0] || '';

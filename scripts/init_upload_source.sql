@@ -1,0 +1,1 @@
+ALTER TABLE media ADD COLUMN upload_source TEXT NOT NULL DEFAULT 'web';

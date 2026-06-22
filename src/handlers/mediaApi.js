@@ -78,6 +78,7 @@ function getMediaResponse(row, origin) {
     size: row.size ?? null,
     userId: row.user_id,
     username: row.username,
+    uploadSource: row.upload_source,
   };
 }
 
@@ -107,7 +108,7 @@ export async function apiUpload({ request, config, user }) {
     const file = formData.get('file');
     const rawSha256 = formData.get('sha256') || '';
     const thumb = formData.get('thumb');
-    const payload = await uploadMedia({ request, config, user, file, thumb, rawSha256 });
+    const payload = await uploadMedia({ request, config, user, file, thumb, rawSha256, uploadSource: 'web' });
     clearMediaListCache();
     return json(payload);
   } catch (e) {
@@ -136,6 +137,7 @@ export async function apiExists({ request, config, url }) {
       url: buildMediaUrl(origin, row.object_key),
       thumbUrl: hasThumb ? buildMediaUrl(origin, row.thumb_key) : null,
       hasThumb,
+      uploadSource: row.upload_source,
     },
   });
 }

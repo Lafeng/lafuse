@@ -1,0 +1,13 @@
+{
+  "picBed": {
+    "uploader": "lafuse",
+    "current": "lafuse",
+    "lafuse": {
+      "endpoint": "https://lafuse.example.com",
+      "token": "lafuse_v1_xxxxxxxxxxxx_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  "picgoPlugins": {
+    "picgo-plugin-lafuse": true
+  }
+}

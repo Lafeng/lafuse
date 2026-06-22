@@ -14,6 +14,7 @@ import {
 import { generateMediaId } from '../media.js';
 
 const SHA256_RE = /^[a-f0-9]{64}$/i;
+const UPLOAD_SOURCES = new Set(['web', 'api']);
 
 export function sanitizeOriginalName(name) {
   const clean = String(name || 'unnamed')
@@ -67,11 +68,16 @@ export function getUploadPayload(request, config, media, reused = false) {
       ? buildMediaUrl(origin, media.thumb_key || media.thumbKey)
       : null,
     hasThumb: Boolean(media.has_thumb || media.hasThumb),
+    uploadSource: media.upload_source || media.uploadSource || 'web',
     reused,
   };
 }
 
-export async function uploadMedia({ request, config, user, file, thumb, rawSha256 = '' }) {
+function normalizeUploadSource(source) {
+  return UPLOAD_SOURCES.has(source) ? source : 'web';
+}
+
+export async function uploadMedia({ request, config, user, file, thumb, rawSha256 = '', uploadSource = 'web' }) {
   if (!isUploadFile(file)) {
     const error = new Error('缺少文件');
     error.status = 400;
@@ -98,6 +104,7 @@ export async function uploadMedia({ request, config, user, file, thumb, rawSha25
   const objectKey = buildObjectKey(id, ext);
   const hasThumb = shouldStoreThumb(thumb, config);
   const thumbKey = hasThumb ? buildThumbKey(id) : null;
+  const normalizedUploadSource = normalizeUploadSource(uploadSource);
 
   const putOps = [
     putMediaObject(config, objectKey, file.stream(), file.type),
@@ -123,6 +130,7 @@ export async function uploadMedia({ request, config, user, file, thumb, rawSha25
       objectKey,
       thumbKey,
       hasThumb,
+      uploadSource: normalizedUploadSource,
       sha256,
     });
   } catch (error) {
@@ -151,5 +159,6 @@ export async function uploadMedia({ request, config, user, file, thumb, rawSha25
     objectKey,
     thumbKey,
     hasThumb,
+    uploadSource: normalizedUploadSource,
   });
 }

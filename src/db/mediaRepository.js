@@ -68,7 +68,7 @@ export async function listMedia(database, params, features) {
     : Promise.resolve(null);
   const dataPromise = database
     .prepare(`
-      SELECT id, ext, size, user_id, username, original_name, object_key, thumb_key, has_thumb
+      SELECT id, ext, size, user_id, username, original_name, object_key, thumb_key, has_thumb, upload_source
       FROM media
       ${where.sql}
       ORDER BY id DESC
@@ -92,7 +92,7 @@ export async function listMedia(database, params, features) {
 export async function findMediaBySha256(database, sha256) {
   return database
     .prepare(`
-      SELECT id, ext, size, user_id, username, original_name, object_key, thumb_key, has_thumb
+      SELECT id, ext, size, user_id, username, original_name, object_key, thumb_key, has_thumb, upload_source
       FROM media
       WHERE sha256 = ?
       ORDER BY id DESC
@@ -105,8 +105,8 @@ export async function findMediaBySha256(database, sha256) {
 export async function insertMedia(database, media) {
   return database
     .prepare(`
-      INSERT INTO media (id, ext, size, user_id, username, original_name, original_name_lc, object_key, thumb_key, has_thumb, sha256)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO media (id, ext, size, user_id, username, original_name, original_name_lc, object_key, thumb_key, has_thumb, upload_source, sha256)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     .bind(
       media.id,
@@ -119,6 +119,7 @@ export async function insertMedia(database, media) {
       media.objectKey,
       media.thumbKey,
       media.hasThumb ? 1 : 0,
+      media.uploadSource,
       media.sha256,
     )
     .run();

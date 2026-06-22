@@ -12,6 +12,10 @@
     archive: '压缩包',
     file: '文件',
   };
+  const SOURCE_LABELS = {
+    web: 'Web 上传',
+    api: 'API 上传',
+  };
 
   const getExtensionFromName = (name = '') => {
     const clean = name.split('?')[0].split('#')[0];
@@ -51,6 +55,7 @@
     const hasThumb = Boolean(item.hasThumb && item.thumbUrl);
     const displayName = item.originalName || item.name || stem;
     const previewSrc = hasThumb ? item.thumbUrl : (kind === 'image' ? item.url : null);
+    const uploadSource = SOURCE_LABELS[item.uploadSource] ? item.uploadSource : 'web';
 
     return {
       extension,
@@ -74,6 +79,8 @@
         second: '2-digit',
       }),
       userLabel: item.username,
+      uploadSource,
+      sourceLabel: SOURCE_LABELS[uploadSource],
     };
   };
 

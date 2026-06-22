@@ -42,6 +42,12 @@ Authorization: Bearer <lafuse-api-token>
 npx wrangler d1 execute d1media --env production --remote --file scripts/init_api_tokens.sql
 ```
 
+如果是从旧版本升级到带上传来源字段的版本，生产 D1 还需要执行一次：
+
+```bash
+npx wrangler d1 execute d1media --env production --remote --file scripts/init_upload_source.sql
+```
+
 生成 PicGo Token：
 
 ```bash
@@ -51,7 +57,22 @@ npx wrangler d1 execute d1media --env production --remote --file scripts/init_ap
 
 脚本会隐藏读取 `AUTH_SALT`，只保存 HMAC 后的 Token hash 到 D1。明文 Token 只输出一次，写入 PicGo 后不要提交到仓库。
 
-安装或本地链接 `picgo-plugin-lafuse/` 上传器后，在 PicGo 配置中启用：
+PicGo CLI 本地插件安装流程：
+
+```bash
+cd ~/.picgo
+npm install --legacy-peer-deps <repo-path>/picgo-plugin-lafuse
+```
+
+PicGo Core 只会从 `~/.picgo/package.json` 的依赖项和 `~/.picgo/node_modules/` 加载 `picgo-plugin-*`，所以仅把插件目录放在项目里不会生效。
+
+安装后确认上传器列表中包含 `lafuse`：
+
+```bash
+node -e "const { PicGo } = require('picgo'); const p = new PicGo(require('node:path').join(process.env.HOME, '.picgo/config.json')); console.log(p.helper.uploader.getIdList())"
+```
+
+PicGo 配置文件位于 `~/.picgo/config.json`，可以参考 `picgo-plugin-lafuse/config.example.json`：
 
 ```json
 {
@@ -67,6 +88,12 @@ npx wrangler d1 execute d1media --env production --remote --file scripts/init_ap
     "picgo-plugin-lafuse": true
   }
 }
+```
+
+配置完成后再测试上传：
+
+```bash
+picgo u /path/to/image.png
 ```
 
 接口写入路径和网页上传一致：一次 R2 原图写入、一次 D1 记录写入；不额外走 Worker 媒体代理。Token 校验在 Worker 内有短 TTL 内存缓存，连续上传多张图片时会减少重复 D1 读。

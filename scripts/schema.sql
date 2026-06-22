@@ -20,6 +20,7 @@ CREATE TABLE media (
   object_key TEXT,
   thumb_key TEXT,
   has_thumb INTEGER NOT NULL DEFAULT 0,
+  upload_source TEXT NOT NULL DEFAULT 'web',
   sha256 TEXT
 );
 CREATE INDEX idx_media_id_desc ON media (id DESC);
