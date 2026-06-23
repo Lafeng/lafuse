@@ -124,7 +124,7 @@ picgo u /path/to/image.png
 - 默认不做上传前查重，避免每个文件额外一次 `/api.exists` 和 D1 查询。
 - 搜索默认使用 `original_name_lc` 前缀范围查询，避免 `LIKE '%keyword%'` 扫描。
 - 上传者筛选来源改为 `users` 表，不再从 `media` 表 `DISTINCT username`。
-- schema 使用 `schema.sql` 初始化，不在请求路径里做 `PRAGMA` 和 `CREATE INDEX`。
+- schema 使用 `scripts/schema.sql` 初始化，不在请求路径里做 `PRAGMA` 和 `CREATE INDEX`。
 
 ## 账号
 

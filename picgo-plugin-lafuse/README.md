@@ -45,4 +45,4 @@ node -e "const { PicGo } = require('picgo'); const p = new PicGo(require('node:p
 picgo u /path/to/image.png
 ```
 
-成功后返回的 URL 应该指向 Lafuse 的媒体公开域名，例如 `https://media.example.com/i/<id>.<ext>`。
+成功后返回的 URL 应该指向你配置的 Lafuse 媒体公开域名，例如 `https://media.example.com/i/<id>.<ext>`。
