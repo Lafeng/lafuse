@@ -32,6 +32,7 @@ document.addEventListener('alpine:init', () => {
     user: null,
     view: 'upload',
     toasts: [],
+    appVersion: window.LafuseConfig.version || 'dev',
 
     uploads: [],
     activeUploadCount: 0,
@@ -121,6 +122,10 @@ document.addEventListener('alpine:init', () => {
       return `${active} 个有效 / ${this.tokens.length} 个总计`;
     },
 
+    get versionLabel() {
+      return this.appVersion ? `版本 ${this.appVersion}` : '';
+    },
+
     async init() {
       this.enableCompression = this.readCompressionPreference();
       this.$watch('enableCompression', value => this.writeCompressionPreference(value));
@@ -149,6 +154,10 @@ document.addEventListener('alpine:init', () => {
           ...window.LafuseConfig.features,
           ...data.features,
         };
+      }
+      if (data?.version) {
+        this.appVersion = data.version;
+        window.LafuseConfig.version = data.version;
       }
       if (!data?.user) {
         window.location.href = '/login';

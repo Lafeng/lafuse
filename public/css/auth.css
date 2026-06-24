@@ -140,11 +140,19 @@ input:focus-visible {
 }
 
 .auth-footer {
+  display: grid;
+  gap: 8px;
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 12px;
   padding-top: 16px;
   text-align: center;
+}
+
+.auth-version {
+  color: #98a2b3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
 }
 
 @media (max-width: 480px) {

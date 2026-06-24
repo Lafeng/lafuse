@@ -6,10 +6,15 @@ document.addEventListener('alpine:init', () => {
     },
     isSubmitting: false,
     error: '',
+    appVersion: 'dev',
+    get versionLabel() {
+      return this.appVersion ? `版本 ${this.appVersion}` : '';
+    },
     async init() {
       try {
         const response = await fetch('/api.session');
         const data = await response.json();
+        if (data?.version) this.appVersion = data.version;
         if (data?.user) {
           window.location.href = '/';
         }

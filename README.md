@@ -24,7 +24,17 @@ npx wrangler d1 execute d1media --local --file scripts/schema.sql
 
 ```bash
 npx wrangler secret put AUTH_SALT --env production
-npx wrangler deploy --env production
+./scripts/deploy.sh
+```
+
+发布脚本会把 `APP_VERSION` 注入 Worker。默认版本号来自 `git describe --tags --always --dirty`：有 tag 时显示 tag，tag 后继续提交时显示 `v1.0.0-3-gabcdef0`，没有 tag 时显示 commit 号。
+
+创建版本 tag 示例：
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+./scripts/deploy.sh
 ```
 
 ## PicGo
@@ -100,6 +110,7 @@ picgo u /path/to/image.png
 | `KV_NAMESPACE` | 是 | - | 登录失败限流 KV |
 | `DOMAIN` | 是 | - | Worker 应用域名 |
 | `AUTH_SALT` | 是 | - | 会话和密码散列盐，生产必须用 secret |
+| `APP_VERSION` | 否 | `dev` | 界面展示版本号，推荐由 `scripts/deploy.sh` 自动注入 |
 | `MEDIA_PUBLIC_ORIGIN` | 生产低成本模式必填 | - | R2 公开域名或自定义域名，用于让媒体文件绕过 Worker |
 | `LOW_COST_MODE` | 否 | `1` | 开启低成本默认策略 |
 | `MAX_SIZE_MB` | 否 | `10` | 单文件上传大小限制 |

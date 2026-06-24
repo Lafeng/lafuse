@@ -36,6 +36,7 @@ export function buildFeatureConfig(env) {
 
 export function getClientConfig(config) {
   return {
+    version: config.appVersion,
     features: {
       uploadDedupe: config.features.enableUploadDedupe,
       thumbnails: config.features.enableThumbnails,

@@ -16,6 +16,7 @@ export function buildConfig(env) {
 
   return {
     domain,
+    appVersion: String(env.APP_VERSION || 'dev').trim() || 'dev',
     mediaPublicOrigin,
     allowWorkerMediaProxy,
     database: env.DATABASE,

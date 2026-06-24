@@ -34,6 +34,7 @@
       </nav>
 
       <div class="account">
+        <span class="app-version" x-show="versionLabel" x-text="versionLabel" x-cloak></span>
         <span class="account-name" x-text="user?.username ?? ''"></span>
         <button class="button button-subtle" type="button" @click="logout">退出</button>
       </div>

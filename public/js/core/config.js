@@ -2,6 +2,7 @@
   window.LafuseConfig = {
     MAX_PARALLEL_UPLOADS: 3,
     COMPRESSION_PREF_KEY: 'lafuse:enableCompression',
+    version: 'dev',
     features: {
       uploadDedupe: false,
       thumbnails: true,

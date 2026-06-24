@@ -79,6 +79,21 @@
   gap: 8px;
 }
 
+.app-version {
+  max-width: 180px;
+  overflow: hidden;
+  border: 1px solid rgba(203, 213, 218, 0.70);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  line-height: 1;
+  padding: 6px 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .account-name {
   max-width: 180px;
   overflow: hidden;

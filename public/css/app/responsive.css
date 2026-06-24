@@ -71,6 +71,10 @@
     display: none;
   }
 
+  .app-version {
+    max-width: 96px;
+  }
+
   .workspace-head,
   .panel-head,
   .stream-toolbar {

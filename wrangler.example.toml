@@ -13,6 +13,7 @@ binding = "ASSETS"
 DOMAIN="localhost:8787"
 # SESSION_COOKIE_NAME
 # SESSION_TTL_DAYS
+# APP_VERSION="dev"
 # MAX_SIZE_MB
 # LOW_COST_MODE="1"
 # MEDIA_PUBLIC_ORIGIN="https://media.example.com"
@@ -45,6 +46,7 @@ name = "lafuse"
 
 [env.production.vars]
 DOMAIN="xxxxxxxxxxxx"
+# APP_VERSION is normally injected by scripts/deploy.sh.
 MAX_SIZE_MB="500"
 LOW_COST_MODE="1"
 MEDIA_PUBLIC_ORIGIN="https://media.example.com"
